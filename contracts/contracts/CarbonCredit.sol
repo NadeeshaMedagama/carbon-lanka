@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /**
  * @title CarbonCredit
- * @notice ERC-1155 Carbon Credit Token for CarbonMicro — Sri Lankan SME Carbon Marketplace
+ * @notice ERC-1155 Carbon Credit Token for CarbonLanka — Sri Lankan SME Carbon Marketplace
  *
  * Each token represents one verified tonne of CO2 sequestered or avoided
  * by a Sri Lankan smallholder farm, verified against IPCC Tier-2 methodology
@@ -36,7 +36,7 @@ contract CarbonCredit is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply 
     struct Credit {
         address farmer;        // Farmer's wallet address
         uint256 tonnes;        // CO2 in kg (1 token = 1 tonne = 1000 kg stored as 1000)
-        string farmId;         // Unique farm identifier (from CarbonMicro backend)
+        string farmId;         // Unique farm identifier (from CarbonLanka backend)
         string vintage;        // Year credit was generated (e.g. "2026")
         string methodology;    // "Verra VMD0042" or "IPCC Tier-2"
         bytes32 satHash;       // keccak256(Sentinel-2 NDVI export bytes)
@@ -79,7 +79,7 @@ contract CarbonCredit is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply 
 
     /**
      * @notice Mint a new carbon credit token for a verified farm.
-     * @dev Only callable by VERIFIER_ROLE (CarbonMicro platform after AI-MRV + Verra confirmation).
+     * @dev Only callable by VERIFIER_ROLE (CarbonLanka platform after AI-MRV + Verra confirmation).
      * @param farmer    Farmer's wallet address — receives the token
      * @param tonnes    Tonnes CO2 (1 token represents 1 tonne; pass integer tonnes)
      * @param farmId    Backend farm identifier string

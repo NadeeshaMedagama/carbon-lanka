@@ -1,7 +1,7 @@
 {
-  "name": "carbonmicro-contracts",
+  "name": "carbonlanka-contracts",
   "version": "0.1.0",
-  "description": "CarbonMicro ERC-1155 smart contracts on Polygon PoS",
+  "description": "CarbonLanka ERC-1155 smart contracts on Polygon PoS",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",

@@ -1,53 +1,54 @@
 """
-Demo seed: generates 200 realistic farms across Sri Lanka's key districts.
+Demo seed: generates 200 realistic farms + marketplace credit listings.
 Run with: python -m app.db.seed
 """
 
 import asyncio
 import random
+import hashlib
 from datetime import datetime
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.database import init_db, AsyncSessionLocal
-from app.models.farm import Farm
-from app.core.mrv_engine import calculate_carbon, FarmInput
+from app.models.farm import Farm, FarmInput
+from app.models.credit import CreditToken
+from app.core.mrv_engine import calculate_carbon
 
 random.seed(42)
 
-# Districts and their approximate coordinate ranges
 DISTRICTS = {
     "Nuwara Eliya": (-6.9271, 80.7718, 0.4),
-    "Ratnapura": (-6.6828, 80.3992, 0.3),
-    "Gampaha": (-7.0873, 80.0144, 0.2),
-    "Kandy": (-7.2906, 80.6337, 0.3),
-    "Matale": (-7.4675, 80.6234, 0.2),
-    "Badulla": (-6.9934, 81.0550, 0.3),
-    "Kurunegala": (-7.4867, 80.3647, 0.2),
-    "Kegalle": (-7.2513, 80.3464, 0.2),
+    "Ratnapura":    (-6.6828, 80.3992, 0.3),
+    "Gampaha":      (-7.0873, 80.0144, 0.2),
+    "Kandy":        (-7.2906, 80.6337, 0.3),
+    "Matale":       (-7.4675, 80.6234, 0.2),
+    "Badulla":      (-6.9934, 81.0550, 0.3),
+    "Kurunegala":   (-7.4867, 80.3647, 0.2),
+    "Kegalle":      (-7.2513, 80.3464, 0.2),
 }
 
 CROP_TYPES = [
-    ("tea_organic", 0.30),
-    ("tea_conventional", 0.15),
+    ("tea_organic",         0.30),
+    ("tea_conventional",    0.15),
     ("rubber_agroforestry", 0.15),
-    ("paddy_rice", 0.12),
-    ("spice_cinnamon", 0.10),
-    ("coconut_organic", 0.10),
-    ("forest_regen", 0.05),
-    ("solar_cooperative", 0.03),
+    ("paddy_rice",          0.12),
+    ("spice_cinnamon",      0.10),
+    ("coconut_organic",     0.10),
+    ("forest_regen",        0.05),
+    ("solar_cooperative",   0.03),
 ]
 
 PRACTICE_CHANGES = {
-    "tea_organic": "organic_conversion",
-    "tea_conventional": "conventional_management",
-    "rubber_agroforestry": "agroforestry_adoption",
-    "paddy_rice": "improved_water_management",
-    "spice_cinnamon": "organic_conversion",
-    "coconut_organic": "organic_conversion",
-    "forest_regen": "forest_regen",
-    "solar_cooperative": "solar_install",
+    "tea_organic":          "organic_conversion",
+    "tea_conventional":     "conventional_management",
+    "rubber_agroforestry":  "agroforestry_adoption",
+    "paddy_rice":           "improved_water_management",
+    "spice_cinnamon":       "organic_conversion",
+    "coconut_organic":      "organic_conversion",
+    "forest_regen":         "forest_regen",
+    "solar_cooperative":    "solar_install",
 }
 
 FARMER_NAMES = [
@@ -60,6 +61,9 @@ FARMER_NAMES = [
     "Isuru Samarasinghe",
 ]
 
+# How many farms to mint as marketplace listings (visible to buyers)
+MARKETPLACE_LISTINGS = 20
+
 
 def _weighted_choice(choices):
     items, weights = zip(*choices)
@@ -70,12 +74,23 @@ def _rand_coord(base: float, spread: float) -> float:
     return round(base + random.uniform(-spread, spread), 6)
 
 
+def _make_token_id(farm_id: int, crop: str, tonnes: float) -> int:
+    seed = f"{farm_id}:{crop}:{tonnes:.2f}:2026"
+    return int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16) % 100_000
+
+
+def _make_tx_hash(farm_id: int, suffix: str = "") -> str:
+    seed = f"tx:{farm_id}:{suffix}:carbonlanka"
+    return "0x" + hashlib.sha256(seed.encode()).hexdigest()
+
+
 async def seed(session: AsyncSession):
     existing = await session.exec(select(Farm))
     if existing.first():
         print("Database already seeded. Skipping.")
         return
 
+    # ── 1. Create 200 farms ───────────────────────────────────────────────
     farms = []
     for i in range(200):
         district = random.choice(list(DISTRICTS.keys()))
@@ -112,16 +127,44 @@ async def seed(session: AsyncSession):
             latitude=_rand_coord(lat_base, spread),
             longitude=_rand_coord(lng_base, spread),
             estimated_tonnes_co2=mrv.tonnes_co2_net,
-            in_pool=True,  # all demo farms are in the pool
+            in_pool=True,
             created_at=datetime(2026, random.randint(1, 3), random.randint(1, 28)),
         )
         farms.append(farm)
 
     session.add_all(farms)
+    await session.flush()  # get IDs without committing
+
+    # ── 2. Mint credit tokens for the first N farms → marketplace listings ─
+    tokens = []
+    for farm in farms[:MARKETPLACE_LISTINGS]:
+        tonnes = farm.estimated_tonnes_co2 or 0.0
+        if tonnes < 1:
+            continue
+        token_id = _make_token_id(farm.id, farm.crop_type, tonnes)
+        tx_hash = _make_tx_hash(farm.id, "mint")
+        sat_hash = _make_tx_hash(farm.id, "sat")
+
+        token = CreditToken(
+            token_id=token_id,
+            farm_id=farm.id,
+            farmer_address="0x" + hashlib.sha256(f"farmer:{farm.id}".encode()).hexdigest()[:40],
+            tonnes_co2=tonnes,
+            vintage="2026",
+            methodology="Verra VMD0042",
+            sat_hash=sat_hash,
+            tx_hash=tx_hash,
+            retired=False,
+            minted_at=datetime(2026, 3, random.randint(1, 31)),
+        )
+        tokens.append(token)
+
+    session.add_all(tokens)
     await session.commit()
 
     total_tonnes = sum(f.estimated_tonnes_co2 or 0 for f in farms)
-    print(f"Seeded {len(farms)} farms | Total pool: {total_tonnes:.0f} t CO2")
+    print(f"✓ Seeded {len(farms)} farms     | Pool: {total_tonnes:.0f} t CO₂")
+    print(f"✓ Minted {len(tokens)} tokens   | Marketplace ready")
 
 
 async def main():

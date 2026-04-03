@@ -13,7 +13,7 @@ function Nav() {
     <nav className="sticky top-0 z-50 border-b border-white/10 bg-forest-dark/90 backdrop-blur-md">
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         <NavLink to="/" className="flex items-center gap-1.5 font-bold text-white">
-          🌿 Carbon<span className="text-carbon-400">Micro</span>
+          🌿 Carbon<span className="text-carbon-400">Lanka</span>
         </NavLink>
         <div className="flex items-center gap-5">
           <NavLink to="/farmer" className={linkClass}>Measure</NavLink>

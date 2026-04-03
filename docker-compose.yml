@@ -8,7 +8,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=sqlite:///./carbonmicro.db
+      - DATABASE_URL=sqlite:///./carbonlanka.db
       - CARBON_PRICE_MIN=8.0
       - CARBON_PRICE_MAX=15.0
       - USD_TO_LKR=310.0

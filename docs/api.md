@@ -1,4 +1,4 @@
-# CarbonMicro API Reference
+# CarbonLanka API Reference
 
 Base URL: `http://localhost:8000`
 Interactive docs: `http://localhost:8000/docs`

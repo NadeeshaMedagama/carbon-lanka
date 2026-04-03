@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CarbonMicro API",
+    title="CarbonLanka API",
     description=(
         "Carbon Credit Micro-Marketplace for Sri Lankan SMEs. "
         "AI Measurement · Blockchain Tokenisation · Satellite Verification"
@@ -38,13 +38,13 @@ app.include_router(marketplace.router)
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "CarbonMicro API"}
+    return {"status": "ok", "service": "CarbonLanka API"}
 
 
 @app.get("/")
 async def root() -> dict:
     return {
-        "service": "CarbonMicro",
+        "service": "CarbonLanka",
         "tagline": "Carbon Credit Micro-Marketplace for Sri Lankan SMEs",
         "docs": "/docs",
         "health": "/health",

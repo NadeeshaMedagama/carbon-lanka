@@ -1,4 +1,4 @@
-# CarbonMicro — Implementation Roadmap
+# CarbonLanka — Implementation Roadmap
 
 ## Phase 0 — Hackathon MVP (0–48 Hours)
 

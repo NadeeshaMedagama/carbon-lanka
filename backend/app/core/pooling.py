@@ -4,7 +4,7 @@ Credit Aggregation (Pooling) Engine
 Bundles small farm carbon credits into Verra-compliant batches.
 
 The carbon market requires 10,000+ t CO2/yr minimum per project.
-CarbonMicro pools 200+ small farms to clear this threshold,
+CarbonLanka pools 200+ small farms to clear this threshold,
 then distributes earnings pro-rata by tonnes contributed.
 
 Reference:

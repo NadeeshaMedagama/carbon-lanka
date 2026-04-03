@@ -1,8 +1,8 @@
-# CarbonMicro — System Architecture
+# CarbonLanka — System Architecture
 
 ## Overview
 
-CarbonMicro operates across four layers, each handling a distinct concern:
+CarbonLanka operates across four layers, each handling a distinct concern:
 
 ```
 LAYER 1: DATA SOURCES

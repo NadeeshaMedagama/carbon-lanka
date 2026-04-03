@@ -1,4 +1,4 @@
-# CarbonMicro
+# CarbonLanka
 
 **Carbon Credit Micro-Marketplace for Sri Lankan SMEs**
 

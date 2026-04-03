@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///./carbonmicro.db"
+    database_url: str = "sqlite+aiosqlite:///./carbonlanka.db"
     carbon_price_min: float = 8.0
     carbon_price_max: float = 15.0
     usd_to_lkr: float = 310.0

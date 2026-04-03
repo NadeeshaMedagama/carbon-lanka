@@ -131,7 +131,7 @@ export default function Home() {
           Sri Lankan exporters need verified carbon offsets to avoid tariffs on goods
           entering Europe. Sri Lanka exported <strong className="text-white">LKR 1.8 trillion</strong> to EU
           countries in 2023 — a significant portion now faces CBAM exposure.
-          CarbonMicro creates the supply side.
+          CarbonLanka creates the supply side.
         </p>
       </section>
     </div>

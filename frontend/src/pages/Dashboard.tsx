@@ -23,7 +23,7 @@ export default function Dashboard() {
             <div className="text-yellow-300 font-bold">EU CBAM — Effective 2026</div>
             <p className="text-gray-300 text-sm mt-1">
               The EU Carbon Border Adjustment Mechanism requires verified carbon certificates
-              for goods exported to Europe. Sri Lankan exporters need CarbonMicro credits
+              for goods exported to Europe. Sri Lankan exporters need CarbonLanka credits
               to avoid tariffs and maintain market access.
             </p>
             <button className="mt-3 px-4 py-1.5 rounded-lg border border-yellow-600/50 text-yellow-300 text-sm hover:bg-yellow-900/30 transition-colors">
@@ -51,7 +51,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
         <p className="text-gray-500 text-xs text-center">
-          Global VCM 2030 projected at $50B (McKinsey, 2023). CarbonMicro Year 1 target: $147K.
+          Global VCM 2030 projected at $50B (McKinsey, 2023). CarbonLanka Year 1 target: $147K.
         </p>
       </div>
 
