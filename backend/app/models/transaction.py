@@ -8,6 +8,7 @@ class BuyOrder(SQLModel):
     token_id: int
     buyer_address: str
     price_usd: float
+    retire_tx_hash: str = ""  # real on-chain retire() tx hash (empty for simulated mode)
 
 
 class Transaction(SQLModel, table=True):
