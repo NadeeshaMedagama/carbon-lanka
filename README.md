@@ -60,7 +60,7 @@ Three components working together:
 ### 1. Clone & configure
 
 ```bash
-git clone https://github.com/your-org/carbon-lanka.git
+git clone https://github.com/team-ipv404/carbon-lanka.git
 cd carbon-lanka
 cp .env.example .env
 # Edit .env with your keys
