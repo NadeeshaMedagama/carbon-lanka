@@ -14,7 +14,7 @@ tile URL. Production integration uses the GEE Python API.
 """
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.models.credit import MRVResult
@@ -78,7 +78,7 @@ def verify_with_satellite(
 
     # Generate a deterministic satellite verification hash
     # In production: keccak256(NDVI_export_file_bytes + farm_id + timestamp)
-    hash_input = f"{crop}:{ndvi}:{latitude}:{longitude}:{datetime.utcnow().date()}"
+    hash_input = f"{crop}:{ndvi}:{latitude}:{longitude}:{datetime.now(timezone.utc).date()}"
     sat_hash = "0x" + hashlib.sha256(hash_input.encode()).hexdigest()[:64]
 
     mrv_result.satellite_verified = True
