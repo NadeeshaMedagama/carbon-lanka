@@ -1,0 +1,51 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+from app.db.database import init_db
+from app.api.routes import mrv, farms, credits, marketplace
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
+app = FastAPI(
+    title="CarbonMicro API",
+    description=(
+        "Carbon Credit Micro-Marketplace for Sri Lankan SMEs. "
+        "AI Measurement · Blockchain Tokenisation · Satellite Verification"
+    ),
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(mrv.router)
+app.include_router(farms.router)
+app.include_router(credits.router)
+app.include_router(marketplace.router)
+
+
+@app.get("/health")
+async def health() -> dict:
+    return {"status": "ok", "service": "CarbonMicro API"}
+
+
+@app.get("/")
+async def root() -> dict:
+    return {
+        "service": "CarbonMicro",
+        "tagline": "Carbon Credit Micro-Marketplace for Sri Lankan SMEs",
+        "docs": "/docs",
+        "health": "/health",
+    }

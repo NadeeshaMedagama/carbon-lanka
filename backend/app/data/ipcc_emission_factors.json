@@ -1,0 +1,90 @@
+{
+  "_source": "IPCC 2019 Refinement to 2006 Guidelines for National GHG Inventories, Volume 4: Agriculture, Forestry and Other Land Use",
+  "_url": "https://www.ipcc-nggip.iges.or.jp/public/2019rf/vol4.html",
+  "_uncertainty": 0.08,
+  "_note": "Emission factors calibrated for Sri Lankan tropical conditions. Sequestration factors are net annual values in tonnes CO2-equivalent per hectare per year.",
+
+  "tea_organic": {
+    "label": "Organic Tea",
+    "description": "Tea cultivation with organic practices, no synthetic fertilisers",
+    "sequestration_factor_t_ha_yr": 8.5,
+    "emission_factor_fertiliser_t_ha_yr": 0.0,
+    "emission_factor_fuel_t_ha_yr": 0.12,
+    "baseline_conventional_seq": 4.2,
+    "practice_bonus_organic": 1.35,
+    "methodology": "IPCC Tier-2 + VMD0042 IALM"
+  },
+  "tea_conventional": {
+    "label": "Conventional Tea",
+    "description": "Tea cultivation with conventional synthetic fertiliser inputs",
+    "sequestration_factor_t_ha_yr": 4.2,
+    "emission_factor_fertiliser_t_ha_yr": 1.8,
+    "emission_factor_fuel_t_ha_yr": 0.18,
+    "baseline_conventional_seq": 4.2,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-2"
+  },
+  "paddy_rice": {
+    "label": "Paddy Rice",
+    "description": "Lowland paddy rice cultivation, intermittently flooded",
+    "sequestration_factor_t_ha_yr": 3.1,
+    "emission_factor_fertiliser_t_ha_yr": 1.2,
+    "emission_factor_fuel_t_ha_yr": 0.09,
+    "emission_factor_methane_t_ha_yr": 2.8,
+    "baseline_conventional_seq": 3.1,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-2 Chapter 5 (Flooded Rice)"
+  },
+  "rubber_agroforestry": {
+    "label": "Rubber Agroforestry",
+    "description": "Rubber cultivation with intercropped shade trees",
+    "sequestration_factor_t_ha_yr": 12.3,
+    "emission_factor_fertiliser_t_ha_yr": 0.9,
+    "emission_factor_fuel_t_ha_yr": 0.08,
+    "baseline_conventional_seq": 7.0,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-2 + REDD+ AGB stock"
+  },
+  "spice_cinnamon": {
+    "label": "Cinnamon / Spice Estate",
+    "description": "Cinnamon or mixed spice cultivation under canopy",
+    "sequestration_factor_t_ha_yr": 7.8,
+    "emission_factor_fertiliser_t_ha_yr": 0.6,
+    "emission_factor_fuel_t_ha_yr": 0.07,
+    "baseline_conventional_seq": 5.0,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-2"
+  },
+  "solar_cooperative": {
+    "label": "Solar Energy Co-operative",
+    "description": "Community solar installation displacing diesel / grid fossil generation",
+    "sequestration_factor_t_ha_yr": 0.0,
+    "displacement_factor_t_kwh": 0.00082,
+    "avg_annual_kwh_per_kw": 1600,
+    "emission_factor_fertiliser_t_ha_yr": 0.0,
+    "emission_factor_fuel_t_ha_yr": 0.0,
+    "baseline_conventional_seq": 0.0,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-1 Energy — grid emission factor Sri Lanka 2023"
+  },
+  "forest_regen": {
+    "label": "Forest Regeneration / REDD+",
+    "description": "Natural forest regeneration or active reforestation on degraded land",
+    "sequestration_factor_t_ha_yr": 18.5,
+    "emission_factor_fertiliser_t_ha_yr": 0.0,
+    "emission_factor_fuel_t_ha_yr": 0.05,
+    "baseline_conventional_seq": 0.0,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-2 + REDD+ VM0007"
+  },
+  "coconut_organic": {
+    "label": "Organic Coconut",
+    "description": "Coconut cultivation with organic soil management",
+    "sequestration_factor_t_ha_yr": 6.2,
+    "emission_factor_fertiliser_t_ha_yr": 0.0,
+    "emission_factor_fuel_t_ha_yr": 0.06,
+    "baseline_conventional_seq": 3.8,
+    "practice_bonus_organic": 1.0,
+    "methodology": "IPCC Tier-2"
+  }
+}

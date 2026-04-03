@@ -1,0 +1,19 @@
+{
+  "name": "carbonmicro-contracts",
+  "version": "0.1.0",
+  "description": "CarbonMicro ERC-1155 smart contracts on Polygon PoS",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "node": "hardhat node",
+    "verify": "hardhat verify --network mumbai"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "hardhat": "^2.22.9",
+    "dotenv": "^16.4.5"
+  }
+}
