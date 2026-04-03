@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { api } from "../services/api";
-import type { CreditListing, CreditTokenRecord, FarmRecord, PoolBundle } from "../types";
+import type { CreditListing, CreditTokenRecord, FarmRecord, PoolBundle, KGMLStatus, BlockchainHealth } from "../types";
 import { CROP_LABELS, formatLKR, formatTonnes, formatUSD } from "../utils/formatters";
+
+function StatusDot({ color }: { color: "green" | "red" | "yellow" }) {
+  const cls =
+    color === "green"
+      ? "bg-green-400 shadow-green-400/50"
+      : color === "yellow"
+        ? "bg-yellow-400 shadow-yellow-400/50"
+        : "bg-red-400 shadow-red-400/50";
+  return <span className={`inline-block w-2.5 h-2.5 rounded-full shadow-sm ${cls}`} />;
+}
 
 export default function Dashboard() {
   const [farms, setFarms] = useState<FarmRecord[]>([]);
   const [pool, setPool] = useState<PoolBundle | null>(null);
   const [listings, setListings] = useState<CreditListing[]>([]);
   const [retired, setRetired] = useState<CreditTokenRecord[]>([]);
+  const [kgmlStatus, setKgmlStatus] = useState<KGMLStatus | null>(null);
+  const [blockchainHealth, setBlockchainHealth] = useState<BlockchainHealth | null>(null);
 
   useEffect(() => {
     Promise.all([api.listFarms(), api.getPool(), api.getListings(), api.listCredits(true)])
@@ -24,6 +36,10 @@ export default function Dashboard() {
         setListings([]);
         setRetired([]);
       });
+
+    // Fetch MRV pipeline health
+    api.getKGMLStatus().then(setKgmlStatus).catch(() => setKgmlStatus(null));
+    api.getBlockchainHealth().then(setBlockchainHealth).catch(() => setBlockchainHealth(null));
   }, []);
 
   const pooledFarms = useMemo(() => farms.filter((f) => f.in_pool).length, [farms]);
@@ -61,6 +77,12 @@ export default function Dashboard() {
       .slice(0, 6);
   }, [farms]);
 
+  const truncateAddress = (addr: string | undefined | null) => {
+    if (!addr) return null;
+    if (addr.length <= 14) return addr;
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
       <div>
@@ -68,6 +90,86 @@ export default function Dashboard() {
         <p className="text-gray-400 text-sm mt-1">Live performance view sourced from current platform database records.</p>
       </div>
 
+      {/* ── MRV Pipeline Health ──────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold text-white">MRV Pipeline Health</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* KGML Model */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">KGML Model</div>
+            <div className="flex items-center gap-2">
+              {kgmlStatus ? (
+                <>
+                  <StatusDot color={kgmlStatus.kgml_model_loaded ? "green" : "red"} />
+                  <span className={`text-sm font-semibold ${kgmlStatus.kgml_model_loaded ? "text-green-400" : "text-red-400"}`}>
+                    {kgmlStatus.kgml_model_loaded ? "Loaded" : "Not Loaded"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* GEE Connection */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">GEE Connection</div>
+            <div className="flex items-center gap-2">
+              {kgmlStatus ? (
+                <>
+                  <StatusDot color={kgmlStatus.gee_connected ? "green" : "red"} />
+                  <span className={`text-sm font-semibold ${kgmlStatus.gee_connected ? "text-green-400" : "text-red-400"}`}>
+                    {kgmlStatus.gee_connected ? "Connected" : "Disconnected"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* Blockchain */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">Blockchain</div>
+            <div className="flex items-center gap-2">
+              {blockchainHealth ? (
+                <>
+                  <StatusDot color={blockchainHealth.enabled && blockchainHealth.connected ? "green" : "yellow"} />
+                  <span
+                    className={`text-sm font-semibold ${
+                      blockchainHealth.enabled && blockchainHealth.connected ? "text-green-400" : "text-yellow-400"
+                    }`}
+                  >
+                    {blockchainHealth.enabled && blockchainHealth.connected ? "Enabled" : "Demo Mode"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* Smart Contract */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">Smart Contract</div>
+            <div className="flex items-center gap-2">
+              {blockchainHealth ? (
+                blockchainHealth.contract_address ? (
+                  <span className="text-sm font-mono font-semibold text-carbon-400" title={blockchainHealth.contract_address}>
+                    {truncateAddress(blockchainHealth.contract_address)}
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold text-gray-500">Not Deployed</span>
+                )
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Existing KPI Cards ───────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-xl border border-white/10 bg-forest-light p-4">
           <div className="text-xs text-gray-400">Registered farms</div>

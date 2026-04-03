@@ -1,14 +1,35 @@
 import axios from "axios";
-import type { FarmInput, MRVResult, FarmRecord, PoolBundle, CreditListing, PayoutDisplay, NDVITile, CreditTokenRecord } from "../types";
+import type {
+  FarmInput,
+  MRVResult,
+  FarmRecord,
+  PoolBundle,
+  CreditListing,
+  PayoutDisplay,
+  NDVITile,
+  CreditTokenRecord,
+  KGMLStatus,
+  BlockchainHealth,
+} from "../types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 const client = axios.create({ baseURL: BASE });
 
 export const api = {
-  // MRV
+  // ── MRV ──────────────────────────────────────────────────────────────
   calculateMRV: (farm: FarmInput) =>
     client.post<MRVResult>("/mrv/calculate", farm).then((r) => r.data),
+
+  /** Primary calculation: IPCC + GEE + KGML ensemble (5-step pipeline) */
+  calculateKGML: (farm: FarmInput, lat?: number, lng?: number) => {
+    const params = new URLSearchParams();
+    if (lat !== undefined) params.set("latitude", String(lat));
+    if (lng !== undefined) params.set("longitude", String(lng));
+    return client
+      .post<MRVResult>(`/mrv/calculate-kgml?${params}`, farm)
+      .then((r) => r.data);
+  },
 
   verifySatellite: (farm: FarmInput, lat?: number, lng?: number) => {
     const params = new URLSearchParams();
@@ -21,13 +42,23 @@ export const api = {
 
   getNDVITile: (cropType: string, lat = 6.9271, lng = 80.7718) =>
     client
-      .get<NDVITile>(`/mrv/ndvi-tile?crop_type=${cropType}&latitude=${lat}&longitude=${lng}`)
+      .get<NDVITile>(
+        `/mrv/ndvi-tile?crop_type=${cropType}&latitude=${lat}&longitude=${lng}`
+      )
       .then((r) => r.data),
 
   getCropTypes: () =>
-    client.get<{ key: string; label: string; description: string }[]>("/mrv/crop-types").then((r) => r.data),
+    client
+      .get<{ key: string; label: string; description: string }[]>(
+        "/mrv/crop-types"
+      )
+      .then((r) => r.data),
 
-  // Farms
+  /** Check KGML model + GEE connection health */
+  getKGMLStatus: () =>
+    client.get<KGMLStatus>("/mrv/kgml-status").then((r) => r.data),
+
+  // ── Farms ────────────────────────────────────────────────────────────
   registerFarm: (farm: FarmInput) =>
     client.post<FarmRecord>("/farms", farm).then((r) => r.data),
 
@@ -42,13 +73,18 @@ export const api = {
   joinPool: (farmId: number) =>
     client.post<FarmRecord>(`/farms/${farmId}/join-pool`).then((r) => r.data),
 
-  // Credits
+  // ── Credits ──────────────────────────────────────────────────────────
   getPool: () =>
     client.get<PoolBundle>("/credits/pool").then((r) => r.data),
 
   mintCredit: (farmId: number, farmerAddress?: string) =>
     client
-      .post<{ token_id: number; tx_hash: string; block_explorer_url: string }>(
+      .post<{
+        token_id: number;
+        tx_hash: string;
+        block_explorer_url: string;
+        on_chain: boolean;
+      }>(
         `/credits/mint?farm_id=${farmId}${farmerAddress ? `&farmer_address=${farmerAddress}` : ""}`
       )
       .then((r) => r.data),
@@ -58,7 +94,19 @@ export const api = {
       .get<CreditTokenRecord[]>(`/credits?retired=${retired}`)
       .then((r) => r.data),
 
-  // Marketplace
+  /** Read credit metadata directly from deployed smart contract */
+  getCreditOnChain: (tokenId: number) =>
+    client
+      .get<Record<string, unknown>>(`/credits/${tokenId}/on-chain`)
+      .then((r) => r.data),
+
+  /** Check blockchain connectivity and verifier wallet status */
+  getBlockchainHealth: () =>
+    client
+      .get<BlockchainHealth>("/credits/blockchain/health")
+      .then((r) => r.data),
+
+  // ── Marketplace ──────────────────────────────────────────────────────
   getListings: () =>
     client.get<CreditListing[]>("/marketplace").then((r) => r.data),
 

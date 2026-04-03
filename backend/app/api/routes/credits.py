@@ -102,7 +102,7 @@ async def mint_credit(
         tonnes_co2=farm.estimated_tonnes_co2,
         vintage=str(datetime.now(timezone.utc).year),
         methodology="Verra VMD0042",
-        sat_hash=sat_hash,
+        sat_hash=sat_hash_hex,
         tx_hash=tx_hash,
         on_chain=on_chain,
     )

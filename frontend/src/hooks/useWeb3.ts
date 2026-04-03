@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { connectWallet, switchToMumbai } from "../services/blockchain";
+import { connectWallet, switchToAmoy } from "../services/blockchain";
 
 export function useWeb3() {
   const [account, setAccount] = useState<string | null>(null);
@@ -23,14 +23,15 @@ export function useWeb3() {
     };
 
     window.ethereum.on("accountsChanged", handleAccountChange);
-    return () => window.ethereum?.removeListener("accountsChanged", handleAccountChange);
+    return () =>
+      window.ethereum?.removeListener("accountsChanged", handleAccountChange);
   }, []);
 
   const connect = useCallback(async () => {
     setConnecting(true);
     setError(null);
     try {
-      await switchToMumbai();
+      await switchToAmoy();
       const addr = await connectWallet();
       setAccount(addr);
     } catch (err: unknown) {
@@ -43,7 +44,7 @@ export function useWeb3() {
   const disconnect = () => setAccount(null);
 
   const shortAccount = account
-    ? `${account.slice(0, 6)}…${account.slice(-4)}`
+    ? `${account.slice(0, 6)}...${account.slice(-4)}`
     : null;
 
   return { account, shortAccount, connecting, error, connect, disconnect };

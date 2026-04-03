@@ -58,6 +58,8 @@ export function FarmForm({ onCalculate, loading }: Props) {
     fuel_litres_yr: 0,
     farmer_name: "",
     district: "Nuwara Eliya",
+    latitude: 6.9271,
+    longitude: 80.7718,
   });
 
   useEffect(() => {
@@ -134,11 +136,41 @@ export function FarmForm({ onCalculate, loading }: Props) {
           </select>
         </div>
 
+        {/* Latitude */}
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Latitude</label>
+          <input
+            type="number"
+            min={5.5}
+            max={10.0}
+            step={0.0001}
+            value={form.latitude ?? 6.9271}
+            onChange={(e) => set("latitude", parseFloat(e.target.value))}
+            placeholder="6.9271"
+            className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-carbon-500"
+          />
+        </div>
+
+        {/* Longitude */}
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Longitude</label>
+          <input
+            type="number"
+            min={79.0}
+            max={82.0}
+            step={0.0001}
+            value={form.longitude ?? 80.7718}
+            onChange={(e) => set("longitude", parseFloat(e.target.value))}
+            placeholder="80.7718"
+            className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-carbon-500"
+          />
+        </div>
+
         {/* Land area */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">
             Land Area (hectares)
-            <span className="ml-1 text-gray-500 text-xs">≈ {acresEquiv} acres</span>
+            <span className="ml-1 text-gray-500 text-xs">{"\u2248"} {acresEquiv} acres</span>
           </label>
           <input
             type="number"
@@ -173,7 +205,7 @@ export function FarmForm({ onCalculate, loading }: Props) {
             onChange={(e) => set("practice_change", e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white focus:outline-none focus:border-carbon-500"
           >
-            {(PRACTICE_BY_CROP[form.crop_type] ?? ["conventional_management"]).map(p => (
+            {(PRACTICE_BY_CROP[form.crop_type] ?? ["conventional_management"]).map((p) => (
               <option key={p} value={p}>{PRACTICE_LABELS[p] ?? p}</option>
             ))}
           </select>
@@ -218,6 +250,8 @@ export function FarmForm({ onCalculate, loading }: Props) {
           years_since_change: 3,
           farmer_name: "Demo Farmer",
           district: "Nuwara Eliya",
+          latitude: 6.9497,
+          longitude: 80.7891,
           fertiliser_kg_ha_yr: 0,
           fuel_litres_yr: 0,
         })}
@@ -234,10 +268,10 @@ export function FarmForm({ onCalculate, loading }: Props) {
         {loading ? (
           <>
             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Calculating…
+            Analysing...
           </>
         ) : (
-          "Calculate Carbon Estimate"
+          "Run KGML Carbon Analysis"
         )}
       </button>
     </form>

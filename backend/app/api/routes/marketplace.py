@@ -1,12 +1,10 @@
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-import hashlib
-from datetime import datetime, timezone
 
 from app.config import settings
 from app.core.blockchain import get_blockchain_service
@@ -37,7 +35,7 @@ async def list_listings(session: AsyncSession = Depends(get_session)) -> list[di
             "farm_id": token.farm_id,
             "farmer_name": farm.farmer_name if farm else "Unknown",
             "district": farm.district if farm else "",
-            "crop_type": token.methodology,
+            "crop_type": farm.crop_type if farm else "",
             "tonnes_co2": token.tonnes_co2,
             "vintage": token.vintage,
             "methodology": token.methodology,
@@ -46,6 +44,7 @@ async def list_listings(session: AsyncSession = Depends(get_session)) -> list[di
             "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
             "tx_hash": token.tx_hash,
             "block_explorer_url": f"{settings.polygon_block_explorer_url}/{token.tx_hash}",
+            "on_chain": token.on_chain,
         })
 
     return listings

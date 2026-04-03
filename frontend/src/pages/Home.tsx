@@ -117,17 +117,17 @@ export default function Home() {
             {
               step: "1",
               title: "Measure",
-              desc: "Farmer submits basic data. AI-MRV computes tonnes and value range using IPCC Tier-2 factors.",
+              desc: "Submit farm data. IPCC Eq.2.25 SOC stock-change + KGML-ag-Carbon AI ensemble computes tonnes CO2 and value range.",
             },
             {
               step: "2",
-              title: "Verify + Pool",
-              desc: "Sentinel-2 NDVI cross-check validates claims. Small farms aggregate into a Verra-sized pool.",
+              title: "Verify",
+              desc: "Sentinel-2 satellite cross-check via Google Earth Engine validates land use claims. Anomaly detection flags mismatches.",
             },
             {
               step: "3",
               title: "Tokenise + Sell",
-              desc: "Credits mint as ERC-1155 on Polygon. Buyers retire credits and farmer payout is settled in LKR.",
+              desc: "ERC-1155 tokens mint on Polygon. Buyers retire credits. Farmer payout settles in LKR via pooled economics.",
             },
           ].map((item) => (
             <div key={item.title} className="rounded-xl border border-white/10 bg-forest-light p-5 space-y-2">
@@ -170,12 +170,12 @@ export default function Home() {
             {
               icon: "🤖",
               title: "AI Carbon Measurement",
-              desc: "IPCC Tier-2 emission factors + Sentinel-2 NDVI. ±8% accuracy. No auditor needed.",
+              desc: "IPCC Tier-2 + KGML-ag-Carbon GRU ensemble. Physics-constrained mass balance. ±15% after satellite verification.",
             },
             {
-              icon: "🔗",
-              title: "Credit Pooling",
-              desc: "200+ farms aggregate into one Verra-compliant bundle. $200/farm vs $80,000 alone.",
+              icon: "🛰",
+              title: "Satellite Verification",
+              desc: "Real-time Sentinel-2 NDVI + ERA5 weather via Google Earth Engine. Claim status: VERIFIED / SUSPICIOUS / REJECTED.",
             },
             {
               icon: "⛓",

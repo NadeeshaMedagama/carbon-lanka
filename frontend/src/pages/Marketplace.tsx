@@ -3,8 +3,43 @@ import { CreditCard } from "../components/CreditCard/CreditCard";
 import { PoolMap } from "../components/PoolMap/PoolMap";
 import { api } from "../services/api";
 import { useWeb3 } from "../hooks/useWeb3";
-import type { CreditListing, PoolBundle, PayoutDisplay } from "../types";
+import type { CreditListing, PoolBundle, PayoutDisplay, BlockchainHealth } from "../types";
 import { formatUSD, formatLKR, formatTonnes } from "../utils/formatters";
+
+function BlockchainStatusBadge({ health }: { health: BlockchainHealth | null }) {
+  if (!health) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-gray-500 rounded-lg border border-white/10 bg-forest-light px-3 py-2">
+        <span className="w-2 h-2 rounded-full bg-gray-500" />
+        Blockchain: Checking...
+      </div>
+    );
+  }
+
+  const isLive = health.enabled && health.connected;
+
+  return (
+    <div
+      className={`flex items-center gap-2 text-xs rounded-lg border px-3 py-2 ${
+        isLive
+          ? "border-green-700/40 bg-green-900/20 text-green-400"
+          : "border-yellow-700/40 bg-yellow-900/20 text-yellow-400"
+      }`}
+    >
+      <span
+        className={`w-2 h-2 rounded-full ${
+          isLive ? "bg-green-400 shadow-sm shadow-green-400/50" : "bg-yellow-400 shadow-sm shadow-yellow-400/50"
+        }`}
+      />
+      {isLive ? "Blockchain: Live on Polygon" : "Blockchain: Demo Mode"}
+      {health.contract_address && (
+        <span className="ml-1 font-mono text-gray-400" title={health.contract_address}>
+          ({health.contract_address.slice(0, 6)}...{health.contract_address.slice(-4)})
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function Marketplace() {
   const { account } = useWeb3();
@@ -15,11 +50,18 @@ export default function Marketplace() {
   const [activeTab, setActiveTab] = useState<"listings" | "pool">("listings");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [blockchainHealth, setBlockchainHealth] = useState<BlockchainHealth | null>(null);
+
+  // On-chain verification state: tokenId -> data | "loading" | "error"
+  const [onChainData, setOnChainData] = useState<Record<number, Record<string, unknown> | "loading" | "error">>({});
+  const [expandedTokens, setExpandedTokens] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     Promise.all([api.getListings(), api.getPool()])
       .then(([l, p]) => { setListings(l); setPool(p); })
       .catch(() => setLoadError("Could not connect to backend. Make sure the API is running at http://localhost:8000"));
+
+    api.getBlockchainHealth().then(setBlockchainHealth).catch(() => setBlockchainHealth(null));
   }, []);
 
   const handleBuy = async (credit: CreditListing) => {
@@ -37,6 +79,31 @@ export default function Marketplace() {
     }
   };
 
+  const handleVerifyOnChain = async (tokenId: number) => {
+    // Toggle expand
+    setExpandedTokens((prev) => {
+      const next = new Set(prev);
+      if (next.has(tokenId)) {
+        next.delete(tokenId);
+        return next;
+      }
+      next.add(tokenId);
+      return next;
+    });
+
+    // If already fetched, just toggle visibility
+    if (onChainData[tokenId] && onChainData[tokenId] !== "error") return;
+
+    // Fetch on-chain data
+    setOnChainData((prev) => ({ ...prev, [tokenId]: "loading" }));
+    try {
+      const data = await api.getCreditOnChain(tokenId);
+      setOnChainData((prev) => ({ ...prev, [tokenId]: data }));
+    } catch {
+      setOnChainData((prev) => ({ ...prev, [tokenId]: "error" }));
+    }
+  };
+
   const totalAvailable = listings.reduce((sum, item) => sum + item.tonnes_co2, 0);
   const avgPrice = listings.length
     ? listings.reduce((sum, item) => sum + item.price_per_tonne_usd, 0) / listings.length
@@ -49,8 +116,11 @@ export default function Marketplace() {
           <h1 className="text-2xl font-bold text-white">Carbon Credit Marketplace</h1>
           <p className="text-gray-400 text-sm mt-1">Sri Lanka verified credits, tokenised on Polygon, with auditable retirement flow.</p>
         </div>
-        <div className="text-xs text-gray-400 rounded-lg border border-white/10 bg-forest-light px-3 py-2">
-          Buyer wallet: <span className="text-white font-mono">{account ?? "Demo buyer"}</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <BlockchainStatusBadge health={blockchainHealth} />
+          <div className="text-xs text-gray-400 rounded-lg border border-white/10 bg-forest-light px-3 py-2">
+            Buyer wallet: <span className="text-white font-mono">{account ?? "Demo buyer"}</span>
+          </div>
         </div>
       </div>
 
@@ -153,12 +223,77 @@ export default function Marketplace() {
           )}
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {listings.map((credit) => (
-              <CreditCard
-                key={credit.token_id}
-                credit={credit}
-                onBuy={handleBuy}
-                buying={buying === credit.token_id}
-              />
+              <div key={credit.token_id} className="space-y-0">
+                <CreditCard
+                  credit={credit}
+                  onBuy={handleBuy}
+                  buying={buying === credit.token_id}
+                />
+
+                {/* Verify On-Chain button */}
+                <div className="px-4 pb-3 -mt-1 rounded-b-xl border border-t-0 border-white/10 bg-forest-light">
+                  <button
+                    onClick={() => handleVerifyOnChain(credit.token_id)}
+                    className={`w-full mt-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                      credit.on_chain
+                        ? "border-carbon-700/50 bg-carbon-900/30 text-carbon-400 hover:bg-carbon-900/50"
+                        : "border-white/10 bg-forest-dark/50 text-gray-400 hover:text-gray-300 hover:bg-forest-dark/80"
+                    }`}
+                  >
+                    {expandedTokens.has(credit.token_id) ? "Hide On-Chain Data" : "Verify On-Chain"}
+                    {credit.on_chain && (
+                      <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-400" />
+                    )}
+                  </button>
+
+                  {/* Expandable on-chain data section */}
+                  {expandedTokens.has(credit.token_id) && (
+                    <div className="mt-2 rounded-lg bg-forest-dark/60 border border-white/5 p-3 text-xs space-y-1">
+                      {onChainData[credit.token_id] === "loading" && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <span className="w-3 h-3 border-2 border-gray-500/30 border-t-gray-400 rounded-full animate-spin" />
+                          Querying smart contract...
+                        </div>
+                      )}
+                      {onChainData[credit.token_id] === "error" && (
+                        <div className="text-red-400">
+                          Failed to fetch on-chain data. The token may not be minted on-chain yet.
+                          <button
+                            onClick={() => {
+                              setOnChainData((prev) => {
+                                const next = { ...prev };
+                                delete next[credit.token_id];
+                                return next;
+                              });
+                              handleVerifyOnChain(credit.token_id);
+                            }}
+                            className="ml-2 text-gray-400 hover:text-gray-300 underline"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+                      {onChainData[credit.token_id] &&
+                        onChainData[credit.token_id] !== "loading" &&
+                        onChainData[credit.token_id] !== "error" && (
+                          <div className="space-y-1.5">
+                            <div className="text-carbon-400 font-semibold mb-1">On-Chain Verification</div>
+                            {Object.entries(onChainData[credit.token_id] as Record<string, unknown>).map(
+                              ([key, value]) => (
+                                <div key={key} className="flex justify-between gap-3">
+                                  <span className="text-gray-400 shrink-0">{key}</span>
+                                  <span className="text-white font-mono text-right break-all">
+                                    {typeof value === "object" ? JSON.stringify(value) : String(value)}
+                                  </span>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </>

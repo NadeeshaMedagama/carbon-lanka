@@ -11,14 +11,14 @@ type Step = "form" | "estimate" | "satellite" | "pool" | "minted";
 
 const STEPS: { key: Step; label: string; helper: string }[] = [
   { key: "form", label: "Farm Input", helper: "Collect activity data" },
-  { key: "estimate", label: "AI Estimate", helper: "Calculate CO2 and value" },
+  { key: "estimate", label: "KGML Estimate", helper: "IPCC + KGML ensemble carbon calculation" },
   { key: "satellite", label: "Satellite Check", helper: "Validate with NDVI" },
   { key: "pool", label: "Pool & Issue", helper: "Aggregate and mint" },
   { key: "minted", label: "Complete", helper: "Credit created on-chain" },
 ];
 
 export default function FarmerPage() {
-  const { result, loading, error, calculate, verifySatellite } = useMRV();
+  const { result, loading, error, calculateKGML, verifySatellite, kgmlStatus } = useMRV();
   const [step, setStep] = useState<Step>("form");
   const [currentFarm, setCurrentFarm] = useState<FarmInput | null>(null);
   const [ndvi, setNDVI] = useState<NDVITile | null>(null);
@@ -36,7 +36,7 @@ export default function FarmerPage() {
   const handleCalculate = async (farm: FarmInput) => {
     setActionError(null);
     setCurrentFarm(farm);
-    const res = await calculate(farm);
+    const res = await calculateKGML(farm, farm.latitude, farm.longitude);
     if (res) setStep("estimate");
   };
 
@@ -104,6 +104,15 @@ export default function FarmerPage() {
     : 0;
   const netUsd = avgUsd * 0.94 - sharedMrvCostPerFarm;
   const netLkr = netUsd * usdToLkr;
+
+  const claimColor = (status: string) => {
+    switch (status) {
+      case "VERIFIED": return "text-green-400";
+      case "SUSPICIOUS": return "text-yellow-400";
+      case "REJECTED": return "text-red-400";
+      default: return "text-gray-400";
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
@@ -177,8 +186,8 @@ export default function FarmerPage() {
           {step === "estimate" && result && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold text-white">Step 2: Review AI Estimate</h2>
-                <p className="text-gray-400 text-sm mt-1">IPCC Tier-2 methodology with uncertainty and confidence scoring.</p>
+                <h2 className="text-2xl font-bold text-white">Step 2: KGML Ensemble Estimate</h2>
+                <p className="text-gray-400 text-sm mt-1">5-step pipeline: IPCC Eq.2.25 SOC stock-change + KGML-ag-Carbon GRU ensemble with physics-constrained mass balance.</p>
               </div>
               <CarbonEstimate
                 result={result}
@@ -286,7 +295,7 @@ export default function FarmerPage() {
                   </div>
                   <div className="rounded-lg bg-forest-light p-3 flex justify-between">
                     <span className="text-gray-400">Network</span>
-                    <span className="text-purple-400">Polygon Mumbai</span>
+                    <span className="text-purple-400">Polygon Amoy</span>
                   </div>
                   <div className="rounded-lg bg-forest-light p-3 flex justify-between">
                     <span className="text-gray-400">Standard</span>
@@ -328,6 +337,28 @@ export default function FarmerPage() {
                 <div className="flex justify-between"><span>Estimated volume</span><span className="text-white">{formatTonnes(result.tonnes_co2_net)}</span></div>
                 <div className="flex justify-between"><span>Avg value</span><span className="text-white">{formatUSD(avgUsd)}</span></div>
                 <div className="flex justify-between"><span>Confidence</span><span className="text-carbon-400">{result.confidence_score}%</span></div>
+                <div className="flex justify-between"><span>Tier</span><span className="text-white">{result.tier}</span></div>
+                <div className="flex justify-between">
+                  <span>Claim status</span>
+                  <span className={claimColor(result.claim_status)}>{result.claim_status}</span>
+                </div>
+              </div>
+            )}
+            {kgmlStatus && (
+              <div className="mt-3 pt-3 border-t border-white/10 text-xs text-gray-400 space-y-1">
+                <div className="text-gray-500 font-medium mb-1">KGML Pipeline</div>
+                <div className="flex justify-between">
+                  <span>KGML model</span>
+                  <span className={kgmlStatus.kgml_model_loaded ? "text-green-400" : "text-red-400"}>
+                    {kgmlStatus.kgml_model_loaded ? "Loaded" : "Offline"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>GEE connection</span>
+                  <span className={kgmlStatus.gee_connected ? "text-green-400" : "text-red-400"}>
+                    {kgmlStatus.gee_connected ? "Connected" : "Disconnected"}
+                  </span>
+                </div>
               </div>
             )}
           </div>

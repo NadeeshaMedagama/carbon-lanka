@@ -26,9 +26,25 @@ export interface MRVResult {
   value_lkr_min: number;
   value_lkr_max: number;
   methodology: string;
+  // IPCC SOC calculation details
+  tier: string;                           // "Tier-1" | "Tier-2" | "Tier-2+Satellite"
+  soc_ref_value: number;
+  delta_soc_annual: number;
+  climate_zone: string;
+  soil_type: string;
+  // KGML model results (Liu et al. 2024)
+  kgml_delta_soc: number | null;
+  kgml_co2_net: number | null;
+  kgml_confidence: number | null;
+  kgml_enabled: boolean;
+  ensemble_weight_kgml: number | null;
+  // Satellite verification
   satellite_verified: boolean;
   satellite_ndvi_score?: number;
   anomaly_flag: boolean;
+  // Claim validity
+  claim_status: string;                   // "VERIFIED" | "UNVERIFIED" | "SUSPICIOUS" | "REJECTED"
+  claim_status_reason: string | null;
   calculated_at: string;
 }
 
@@ -85,6 +101,7 @@ export interface CreditListing {
   price_lkr: number;
   tx_hash: string;
   block_explorer_url: string;
+  on_chain: boolean;
 }
 
 export interface CreditTokenRecord {
@@ -101,6 +118,7 @@ export interface CreditTokenRecord {
   retired_by?: string | null;
   minted_at: string;
   retired_at?: string | null;
+  on_chain: boolean;
 }
 
 export interface PayoutDisplay {
@@ -118,6 +136,8 @@ export interface PayoutDisplay {
 
 export interface NDVITile {
   ndvi_score: number;
+  ndvi_trend?: string;
+  gee_live?: boolean;
   center: { lat: number; lng: number };
   bbox: { south: number; west: number; north: number; east: number };
   color_scale: string;
@@ -131,6 +151,23 @@ export interface NDVITile {
   source: string;
   date: string;
   note: string;
+  tile_url?: string;
+}
+
+export interface KGMLStatus {
+  kgml_model_loaded: boolean;
+  gee_connected: boolean;
+  model_info: Record<string, unknown>;
+}
+
+export interface BlockchainHealth {
+  enabled: boolean;
+  connected?: boolean;
+  chain_id?: number;
+  verifier_address?: string;
+  verifier_balance_pol?: number;
+  contract_address?: string;
+  reason?: string;
 }
 
 export type CropType =
