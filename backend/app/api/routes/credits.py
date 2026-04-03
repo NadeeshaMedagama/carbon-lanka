@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 
 from app.db.database import get_session
@@ -47,7 +47,7 @@ async def mint_credit(
         farm_id=farm_id,
         farmer_address=farmer_address,
         tonnes_co2=farm.estimated_tonnes_co2,
-        vintage=str(datetime.utcnow().year),
+        vintage=str(datetime.now(timezone.utc).year),
         methodology="Verra VMD0042",
         sat_hash=sat_hash,
         tx_hash=tx_hash,
