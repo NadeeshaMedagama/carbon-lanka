@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { FarmInput, MRVResult, FarmRecord, PoolBundle, CreditListing, PayoutDisplay, NDVITile } from "../types";
+import type { FarmInput, MRVResult, FarmRecord, PoolBundle, CreditListing, PayoutDisplay, NDVITile, CreditTokenRecord } from "../types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -51,6 +51,11 @@ export const api = {
       .post<{ token_id: number; tx_hash: string; block_explorer_url: string }>(
         `/credits/mint?farm_id=${farmId}${farmerAddress ? `&farmer_address=${farmerAddress}` : ""}`
       )
+      .then((r) => r.data),
+
+  listCredits: (retired = false) =>
+    client
+      .get<CreditTokenRecord[]>(`/credits?retired=${retired}`)
       .then((r) => r.data),
 
   // Marketplace

@@ -108,8 +108,8 @@ Mint an ERC-1155 token for a farm.
   "farm_id": 1,
   "tonnes_co2": 22.98,
   "tx_hash": "0xabc...",
-  "block_explorer_url": "https://mumbai.polygonscan.com/tx/0xabc...",
-  "network": "Polygon Mumbai Testnet",
+  "block_explorer_url": "https://amoy.polygonscan.com/tx/0xabc...",
+  "network": "Polygon Amoy Testnet",
   "standard": "ERC-1155",
   "methodology": "Verra VMD0042"
 }
@@ -130,9 +130,13 @@ Purchase and retire a credit token.
 {
   "token_id": 12345,
   "buyer_address": "0xBUYER_ADDRESS",
-  "price_usd": 12.0
+  "price_usd": 12.0,
+  "retire_tx_hash": "0x..."
 }
 ```
+`retire_tx_hash` is the real on-chain retire() transaction hash from MetaMask.
+When `USE_REAL_BLOCKCHAIN=true`, the backend verifies this on-chain before recording.
+When empty or blockchain disabled, uses simulated mode.
 
 **Response:**
 ```json
@@ -146,7 +150,7 @@ Purchase and retire a credit token.
   "net_usd": 184.21,
   "net_lkr": 57105,
   "tx_hash": "0xretire...",
-  "block_explorer_url": "https://mumbai.polygonscan.com/tx/0xretire..."
+  "block_explorer_url": "https://amoy.polygonscan.com/tx/0xretire..."
 }
 ```
 

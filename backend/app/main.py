@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from app.config import settings
 from app.db.database import init_db
 from app.api.routes import mrv, farms, credits, marketplace
 from app.config import settings
@@ -15,6 +16,8 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("carbonlanka")
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

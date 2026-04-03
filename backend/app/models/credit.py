@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 
 
@@ -56,9 +56,11 @@ class CreditToken(SQLModel, table=True):
     sat_hash: str = ""  # keccak256 of satellite verification data
     tx_hash: str = ""  # Polygon transaction hash of mint
     retired: bool = False
+    retired_amount: float = 0.0  # cumulative tonnes retired (supports partial retirement)
     retired_by: Optional[str] = None
-    minted_at: datetime = Field(default_factory=datetime.utcnow)
+    minted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     retired_at: Optional[datetime] = None
+    on_chain: bool = False  # true if minted via real blockchain (not simulated)
 
 
 class PoolBundle(SQLModel):

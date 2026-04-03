@@ -34,7 +34,7 @@ Additional references used in this implementation:
 import json
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.farm import FarmInput
 from app.models.credit import MRVResult

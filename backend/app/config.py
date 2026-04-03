@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     polygon_block_explorer_url: str = "https://mumbai.polygonscan.com/tx"
     polygon_mumbai_rpc: str = "https://rpc-mumbai.maticvigil.com"
     carbon_credit_contract_address: str = ""
+    deployer_private_key: str = ""
+    use_real_blockchain: bool = False
+
+    @property
+    def block_explorer_base_url(self) -> str:
+        return "https://amoy.polygonscan.com"
 
     # ── Google Earth Engine ───────────────────────────────────────────────────
     gee_service_account_key: str = ""

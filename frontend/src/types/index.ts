@@ -87,6 +87,22 @@ export interface CreditListing {
   block_explorer_url: string;
 }
 
+export interface CreditTokenRecord {
+  id: number;
+  token_id: number;
+  farm_id: number;
+  farmer_address: string;
+  tonnes_co2: number;
+  vintage: string;
+  methodology: string;
+  sat_hash: string;
+  tx_hash: string;
+  retired: boolean;
+  retired_by?: string | null;
+  minted_at: string;
+  retired_at?: string | null;
+}
+
 export interface PayoutDisplay {
   token_id: number;
   farmer_name: string;

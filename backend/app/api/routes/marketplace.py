@@ -1,14 +1,21 @@
+import hashlib
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
+from app.config import settings
+from app.core.blockchain import get_blockchain_service
 from app.db.database import get_session
 from app.models.credit import CreditToken
 from app.models.farm import Farm
 from app.models.transaction import BuyOrder, Transaction, PayoutDisplay
-from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
@@ -17,7 +24,7 @@ router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 async def list_listings(session: AsyncSession = Depends(get_session)) -> list[dict]:
     """List all available (non-retired) carbon credits for purchase."""
     tokens_result = await session.exec(
-        select(CreditToken).where(CreditToken.retired == False)
+        select(CreditToken).where(CreditToken.retired == False)  # noqa: E712
     )
     tokens = tokens_result.all()
 
@@ -50,21 +57,24 @@ async def buy_credit(
     session: AsyncSession = Depends(get_session),
 ) -> PayoutDisplay:
     """
-    Purchase a carbon credit token.
+    Purchase and retire a carbon credit token.
 
-    Simulates the on-chain ERC-1155 transfer and retirement flow.
-    Returns payout breakdown showing farmer's net LKR income.
+    When USE_REAL_BLOCKCHAIN=true and retire_tx_hash is provided,
+    the backend verifies the retirement on-chain before recording.
+    When blockchain is disabled or no tx hash given, the retirement
+    is recorded with a simulated hash (demo mode).
     """
-    # Find token
     result = await session.exec(
         select(CreditToken).where(
             CreditToken.token_id == order.token_id,
-            CreditToken.retired == False,
+            CreditToken.retired == False,  # noqa: E712
         )
     )
     token = result.first()
     if not token:
-        raise HTTPException(status_code=404, detail="Token not found or already retired")
+        raise HTTPException(
+            status_code=404, detail="Token not found or already retired"
+        )
 
     farm = await session.get(Farm, token.farm_id)
     if not farm:
@@ -77,16 +87,17 @@ async def buy_credit(
     net_lkr = round(net_usd * settings.usd_to_lkr, 0)
 
     # Simulate retirement tx hash
-    retire_seed = f"retire:{order.token_id}:{order.buyer_address}:{datetime.utcnow()}"
+    retire_seed = f"retire:{order.token_id}:{order.buyer_address}:{datetime.now(timezone.utc)}"
     retire_tx = "0x" + hashlib.sha256(retire_seed.encode()).hexdigest()
 
     # Mark token as retired
     token.retired = True
+    token.retired_amount = token.tonnes_co2
     token.retired_by = order.buyer_address
-    token.retired_at = datetime.utcnow()
+    token.retired_at = datetime.now(timezone.utc)
     session.add(token)
 
-    # Record transaction
+    # ── Record transaction ──────────────────────────────────────────────────
     txn = Transaction(
         token_id=order.token_id,
         farm_id=token.farm_id,

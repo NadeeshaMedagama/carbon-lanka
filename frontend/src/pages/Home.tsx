@@ -1,48 +1,79 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-
-const STATS = [
-  { value: "50,000+", label: "Addressable t CO₂/yr" },
-  { value: "$50B", label: "VCM Market 2030" },
-  { value: "6%", label: "Platform fee" },
-  { value: "94%", label: "Fraud reduction" },
-  { value: "Rs 0", label: "Upfront cost" },
-];
+import { api } from "../services/api";
+import type { CreditListing, CreditTokenRecord, FarmRecord, PoolBundle } from "../types";
+import { formatTonnes, formatUSD } from "../utils/formatters";
 
 const BARRIERS = [
   {
     title: "Minimum Project Size",
-    problem: "Verra requires 10,000–50,000 t CO₂/yr minimum.",
-    impact: "A tea farm generates 20–500 t — up to 2,500× below threshold.",
+    problem: "Global registry thresholds are high for individual smallholders.",
+    impact: "Many farms are too small to register as standalone projects.",
   },
   {
     title: "Verification Cost",
-    problem: "MRV auditors charge $15,000–$80,000 per project.",
-    impact: "At $12/tonne, a 200-tonne farm earns $2,400. Verification costs $15,000.",
+    problem: "Traditional verification is costly for individual producers.",
+    impact: "High fixed costs can exceed the value of small projects.",
   },
   {
     title: "Technical Complexity",
-    problem: "Applications require lawyers, consultants, 12–24 months.",
-    impact: "No Sri Lankan smallholder has the time, literacy, or money.",
+    problem: "Compliance workflows are document-heavy and technical.",
+    impact: "Small teams need simplified digital workflows to participate.",
   },
   {
     title: "No Local Infrastructure",
-    problem: "No Sri Lanka-specific carbon registry or MRV provider.",
-    impact: "Foreign platforms don't serve projects below 1,000 tonnes.",
+    problem: "SME-focused local digital infrastructure is still emerging.",
+    impact: "Projects need local onboarding, language, and payout support.",
   },
 ];
 
 export default function Home() {
+  const [farms, setFarms] = useState<FarmRecord[]>([]);
+  const [pool, setPool] = useState<PoolBundle | null>(null);
+  const [listings, setListings] = useState<CreditListing[]>([]);
+  const [retired, setRetired] = useState<CreditTokenRecord[]>([]);
+
+  useEffect(() => {
+    Promise.all([api.listFarms(), api.getPool(), api.getListings(), api.listCredits(true)])
+      .then(([farmRows, poolRow, listingRows, retiredRows]) => {
+        setFarms(farmRows);
+        setPool(poolRow);
+        setListings(listingRows);
+        setRetired(retiredRows);
+      })
+      .catch(() => {
+        setFarms([]);
+        setPool(null);
+        setListings([]);
+        setRetired([]);
+      });
+  }, []);
+
+  const stats = useMemo(() => {
+    const pooledFarms = farms.filter((f) => f.in_pool).length;
+    const listedTonnes = listings.reduce((sum, l) => sum + l.tonnes_co2, 0);
+    const listedValue = listings.reduce((sum, l) => sum + l.price_usd, 0);
+    return [
+      { value: String(farms.length), label: "Registered farms" },
+      { value: String(pooledFarms), label: "Farms in pool" },
+      { value: pool ? formatTonnes(pool.total_tonnes_co2) : "-", label: "Pooled CO2 volume" },
+      { value: formatTonnes(listedTonnes), label: "Listed CO2 volume" },
+      { value: formatUSD(listedValue), label: "Live listing value" },
+      { value: String(retired.length), label: "Retired credits" },
+    ];
+  }, [farms, listings, pool, retired.length]);
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-16">
+    <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
       {/* Hero */}
-      <section className="text-center space-y-5">
-        <div className="inline-block px-3 py-1 rounded-full border border-carbon-700/60 text-carbon-400 text-xs font-medium">
+      <section className="text-center space-y-6">
+        <div className="inline-block px-3 py-1 rounded-full border border-carbon-700/60 bg-carbon-900/20 text-carbon-300 text-xs font-medium">
           CryptX 2.0 · Responsible AI &amp; Future of Work
         </div>
-        <h1 className="text-5xl font-bold text-white leading-tight">
+        <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight">
           Carbon<span className="text-carbon-400">Micro</span>
         </h1>
-        <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+        <p className="text-gray-300 text-lg max-w-3xl mx-auto">
           Carbon Credit Micro-Marketplace for Sri Lankan SMEs.<br />
           AI Measurement · Blockchain Tokenisation · Satellite Verification
         </p>
@@ -59,17 +90,55 @@ export default function Home() {
           >
             Browse Marketplace
           </Link>
+          <Link
+            to="/dashboard"
+            className="px-6 py-3 rounded-xl border border-carbon-700/40 bg-carbon-900/20 hover:bg-carbon-900/40 text-carbon-300 font-semibold transition-colors"
+          >
+            Open ESG Dashboard
+          </Link>
         </div>
       </section>
 
       {/* Stats row */}
-      <section className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {STATS.map((s) => (
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {stats.map((s) => (
           <div key={s.label} className="rounded-xl border border-white/10 bg-forest-light p-4 text-center">
             <div className="text-xl font-bold text-carbon-400">{s.value}</div>
             <div className="text-gray-400 text-xs mt-1">{s.label}</div>
           </div>
         ))}
+      </section>
+
+      {/* How it works */}
+      <section className="space-y-5">
+        <h2 className="text-2xl font-bold text-white">How It Works in 3 Steps</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            {
+              step: "1",
+              title: "Measure",
+              desc: "Farmer submits basic data. AI-MRV computes tonnes and value range using IPCC Tier-2 factors.",
+            },
+            {
+              step: "2",
+              title: "Verify + Pool",
+              desc: "Sentinel-2 NDVI cross-check validates claims. Small farms aggregate into a Verra-sized pool.",
+            },
+            {
+              step: "3",
+              title: "Tokenise + Sell",
+              desc: "Credits mint as ERC-1155 on Polygon. Buyers retire credits and farmer payout is settled in LKR.",
+            },
+          ].map((item) => (
+            <div key={item.title} className="rounded-xl border border-white/10 bg-forest-light p-5 space-y-2">
+              <div className="w-7 h-7 rounded-full bg-carbon-800 text-carbon-300 text-sm font-bold flex items-center justify-center">
+                {item.step}
+              </div>
+              <div className="text-white font-semibold">{item.title}</div>
+              <div className="text-sm text-gray-400">{item.desc}</div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* Problem */}
@@ -79,7 +148,7 @@ export default function Home() {
           <p className="text-gray-400 mt-2">
             Sri Lanka has 2M hectares of agricultural land, 22% forest cover, and a
             rapidly growing renewable sector. The carbon value generated is real — but
-            entirely unrealised. Four structural barriers lock out every smallholder farmer.
+              still difficult to monetize. CarbonMicro focuses on removing four structural barriers.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -128,10 +197,8 @@ export default function Home() {
         <h3 className="text-yellow-300 font-bold text-lg mb-2">Why 2026 is the Right Moment</h3>
         <p className="text-gray-300 text-sm leading-relaxed">
           The EU Carbon Border Adjustment Mechanism (CBAM) takes full effect in 2026.
-          Sri Lankan exporters need verified carbon offsets to avoid tariffs on goods
-          entering Europe. Sri Lanka exported <strong className="text-white">LKR 1.8 trillion</strong> to EU
-          countries in 2023 — a significant portion now faces CBAM exposure.
-          CarbonLanka creates the supply side.
+          Sri Lankan exporters need verified carbon evidence to remain competitive in EU supply chains.
+          CarbonMicro provides a local measurement-to-market pipeline for that demand.
         </p>
       </section>
     </div>

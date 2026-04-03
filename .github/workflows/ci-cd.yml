@@ -1,0 +1,155 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+
+#concurrency:
+#  group: ci-cd-${{ github.ref }}
+#  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  backend-tests:
+    name: Backend Tests (FastAPI)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///./carbonlanka.db
+        run: pytest -q
+
+  frontend-build:
+    name: Frontend Lint + Build (Vite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  contracts-tests:
+    name: Smart Contracts Test (Hardhat)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install contract dependencies
+        working-directory: contracts
+        run: npm install
+
+      - name: Compile contracts
+        working-directory: contracts
+        run: npm run compile
+
+      - name: Run contract tests
+        working-directory: contracts
+        run: npm test
+
+  docker-build-and-publish:
+    name: Build and Publish Images (Main/Tags)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build, contracts-tests]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/carbonlanka-backend:latest
+            ghcr.io/${{ github.repository_owner }}/carbonlanka-backend:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/carbonlanka-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/carbonlanka-frontend:${{ github.sha }}
+
+  deploy-webhook:
+    name: Deploy via Webhook (Optional)
+    runs-on: ubuntu-latest
+    needs: [docker-build-and-publish]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Trigger deployment webhook
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
+            echo "DEPLOY_WEBHOOK_URL is not set; skipping deploy webhook."
+            exit 0
+          fi
+
+          curl -X POST "$DEPLOY_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"repository":"${{ github.repository }}","sha":"${{ github.sha }}"}'
+
+

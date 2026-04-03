@@ -8,7 +8,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=sqlite:///./carbonlanka.db
+      - DATABASE_URL=sqlite+aiosqlite:///./carbonlanka.db
       - CARBON_PRICE_MIN=8.0
       - CARBON_PRICE_MAX=15.0
       - USD_TO_LKR=310.0
@@ -22,15 +22,9 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000
+      - "5173:80"
     depends_on:
       - backend
-    command: npm run dev -- --host 0.0.0.0
 
 volumes:
   db_data:

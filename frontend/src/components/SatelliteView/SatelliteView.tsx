@@ -16,6 +16,7 @@ function ndviToColor(score: number): string {
 
 export function SatelliteView({ ndvi }: Props) {
   const color = ndviToColor(ndvi.ndvi_score);
+  const vegetationBand = ndvi.ndvi_score >= 0.65 ? "High vegetation" : ndvi.ndvi_score >= 0.5 ? "Moderate vegetation" : ndvi.ndvi_score >= 0.3 ? "Low vegetation" : "Very low vegetation";
   const bounds: [[number, number], [number, number]] = [
     [ndvi.bbox.south, ndvi.bbox.west],
     [ndvi.bbox.north, ndvi.bbox.east],
@@ -23,6 +24,17 @@ export function SatelliteView({ ndvi }: Props) {
 
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border border-white/10 bg-forest-light p-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-white">Satellite NDVI Cross-Check</div>
+          <div className="text-xs text-gray-400">Sentinel-2 imagery corroborates submitted farm activity data.</div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-gray-400">NDVI score</div>
+          <div className="text-carbon-300 font-bold">{ndvi.ndvi_score.toFixed(2)}</div>
+        </div>
+      </div>
+
       <div className="rounded-xl overflow-hidden border border-white/10" style={{ height: 280 }}>
         <MapContainer
           center={[ndvi.center.lat, ndvi.center.lng]}
@@ -56,11 +68,14 @@ export function SatelliteView({ ndvi }: Props) {
         <span className="ml-2">NDVI Vegetation Index</span>
       </div>
 
-      <div className="rounded-lg bg-forest-light border border-white/5 p-3 text-xs text-gray-400">
-        <span className="text-gray-300 font-medium">Source:</span> {ndvi.source} ·{" "}
-        <span className="text-gray-300">{ndvi.date}</span>
-        <br />
-        <span className="text-gray-500">{ndvi.note}</span>
+      <div className="rounded-lg bg-forest-light border border-white/5 p-3 text-xs text-gray-400 space-y-1">
+        <div>
+          <span className="text-gray-300 font-medium">Interpretation:</span> {vegetationBand}
+        </div>
+        <div>
+          <span className="text-gray-300 font-medium">Source:</span> {ndvi.source} · <span className="text-gray-300">{ndvi.date}</span>
+        </div>
+        <div className="text-gray-500">{ndvi.note}</div>
       </div>
     </div>
   );
