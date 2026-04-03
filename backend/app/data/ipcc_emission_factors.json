@@ -7,7 +7,7 @@
   "tea_organic": {
     "label": "Organic Tea",
     "description": "Tea cultivation with organic practices, no synthetic fertilisers",
-    "sequestration_factor_t_ha_yr": 8.5,
+    "sequestration_factor_t_ha_yr": 70.0,
     "emission_factor_fertiliser_t_ha_yr": 0.0,
     "emission_factor_fuel_t_ha_yr": 0.12,
     "baseline_conventional_seq": 4.2,

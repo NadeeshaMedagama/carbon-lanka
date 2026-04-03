@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.db.database import get_session
 from app.models.credit import CreditToken
@@ -80,13 +80,13 @@ async def buy_credit(
     net_lkr = round(net_usd * settings.usd_to_lkr, 0)
 
     # Simulate retirement tx hash
-    retire_seed = f"retire:{order.token_id}:{order.buyer_address}:{datetime.utcnow()}"
+    retire_seed = f"retire:{order.token_id}:{order.buyer_address}:{datetime.now(timezone.utc)}"
     retire_tx = "0x" + hashlib.sha256(retire_seed.encode()).hexdigest()
 
     # Mark token as retired
     token.retired = True
     token.retired_by = order.buyer_address
-    token.retired_at = datetime.utcnow()
+    token.retired_at = datetime.now(timezone.utc)
     session.add(token)
 
     # Record transaction
