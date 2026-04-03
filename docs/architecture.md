@@ -94,7 +94,7 @@ Key fraud-prevention property: `retired=true` is permanent and irreversible. The
 4. Mint token
    → POST /credits/mint?farm_id={id}
    → CarbonCredit.sol: mint(farmer, 23, "FARM-NE-001", "2026", satHash)
-   → Polygon Mumbai txn fires → visible on polygonscan.com
+   → Polygon Amoy txn fires → visible on amoy.polygonscan.com
 
 5. Marketplace listing
    → GET /marketplace → CreditCard shown in UI

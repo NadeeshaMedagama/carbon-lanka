@@ -12,8 +12,14 @@ class Settings(BaseSettings):
     gee_service_account_key: str = ""
     gee_project_id: str = ""
 
-    polygon_mumbai_rpc: str = "https://rpc-mumbai.maticvigil.com"
+    polygon_amoy_rpc: str = "https://rpc-amoy.polygon.technology"
     carbon_credit_contract_address: str = ""
+    deployer_private_key: str = ""
+    use_real_blockchain: bool = False
+
+    @property
+    def block_explorer_base_url(self) -> str:
+        return "https://amoy.polygonscan.com"
 
 
 settings = Settings()

@@ -1,48 +1,67 @@
+import hashlib
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 import hashlib
 from datetime import datetime, timezone
 
+from app.config import settings
+from app.core.blockchain import get_blockchain_service
 from app.db.database import get_session
 from app.models.credit import CreditToken
 from app.models.farm import Farm
 from app.models.transaction import BuyOrder, Transaction, PayoutDisplay
-from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
 _PLATFORM_FEE_RATE = 0.06
-_MRV_COST_SHARE_USD = 75.0  # shared MRV cost per farm (200 farms sharing $15K)
+_MRV_COST_SHARE_USD = 75.0
+_EXPLORER = settings.block_explorer_base_url
 
 
 @router.get("")
 async def list_listings(session: AsyncSession = Depends(get_session)) -> list[dict]:
     """List all available (non-retired) carbon credits for purchase."""
     tokens_result = await session.exec(
-        select(CreditToken).where(CreditToken.retired == False)
+        select(CreditToken).where(CreditToken.retired == False)  # noqa: E712
     )
     tokens = tokens_result.all()
 
     listings = []
     for token in tokens:
         farm = await session.get(Farm, token.farm_id)
-        price_usd = round(token.tonnes_co2 * (settings.carbon_price_min + settings.carbon_price_max) / 2, 2)
-        listings.append({
-            "token_id": token.token_id,
-            "farm_id": token.farm_id,
-            "farmer_name": farm.farmer_name if farm else "Unknown",
-            "district": farm.district if farm else "",
-            "crop_type": token.methodology,
-            "tonnes_co2": token.tonnes_co2,
-            "vintage": token.vintage,
-            "methodology": token.methodology,
-            "price_usd": price_usd,
-            "price_per_tonne_usd": (settings.carbon_price_min + settings.carbon_price_max) / 2,
-            "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
-            "tx_hash": token.tx_hash,
-            "block_explorer_url": f"https://mumbai.polygonscan.com/tx/{token.tx_hash}",
-        })
+        price_usd = round(
+            token.tonnes_co2
+            * (settings.carbon_price_min + settings.carbon_price_max)
+            / 2,
+            2,
+        )
+        listings.append(
+            {
+                "token_id": token.token_id,
+                "farm_id": token.farm_id,
+                "farmer_name": farm.farmer_name if farm else "Unknown",
+                "district": farm.district if farm else "",
+                "crop_type": farm.crop_type if farm else token.methodology,
+                "tonnes_co2": token.tonnes_co2,
+                "vintage": token.vintage,
+                "methodology": token.methodology,
+                "price_usd": price_usd,
+                "price_per_tonne_usd": (
+                    settings.carbon_price_min + settings.carbon_price_max
+                )
+                / 2,
+                "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
+                "tx_hash": token.tx_hash,
+                "block_explorer_url": f"{_EXPLORER}/tx/{token.tx_hash}",
+                "on_chain": token.on_chain,
+            }
+        )
 
     return listings
 
@@ -53,27 +72,71 @@ async def buy_credit(
     session: AsyncSession = Depends(get_session),
 ) -> PayoutDisplay:
     """
-    Purchase a carbon credit token.
+    Purchase and retire a carbon credit token.
 
-    Simulates the on-chain ERC-1155 transfer and retirement flow.
-    Returns payout breakdown showing farmer's net LKR income.
+    When USE_REAL_BLOCKCHAIN=true and retire_tx_hash is provided,
+    the backend verifies the retirement on-chain before recording.
+    When blockchain is disabled or no tx hash given, the retirement
+    is recorded with a simulated hash (demo mode).
     """
-    # Find token
     result = await session.exec(
         select(CreditToken).where(
             CreditToken.token_id == order.token_id,
-            CreditToken.retired == False,
+            CreditToken.retired == False,  # noqa: E712
         )
     )
     token = result.first()
     if not token:
-        raise HTTPException(status_code=404, detail="Token not found or already retired")
+        raise HTTPException(
+            status_code=404, detail="Token not found or already retired"
+        )
 
     farm = await session.get(Farm, token.farm_id)
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
 
-    # Calculate payout
+    # ── On-chain verification (if blockchain enabled and tx hash provided) ──
+    blockchain = get_blockchain_service()
+    use_chain = (
+        blockchain is not None
+        and settings.use_real_blockchain
+        and order.retire_tx_hash
+    )
+
+    if use_chain:
+        try:
+            chain_data = await blockchain.verify_retirement(
+                tx_hash=order.retire_tx_hash,
+                expected_token_id=order.token_id,
+            )
+            logger.info(
+                "On-chain retirement verified for token #%d: %s",
+                order.token_id,
+                chain_data,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"On-chain retirement verification failed: {exc}",
+            )
+        except Exception as exc:
+            logger.error(
+                "Blockchain verification error for token #%d: %s",
+                order.token_id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not verify retirement on-chain: {exc}",
+            )
+        retire_tx = order.retire_tx_hash
+    else:
+        retire_seed = (
+            f"retire:{order.token_id}:{order.buyer_address}:{datetime.utcnow()}"
+        )
+        retire_tx = "0x" + hashlib.sha256(retire_seed.encode()).hexdigest()
+
+    # ── Payout calculation ──────────────────────────────────────────────────
     gross_usd = token.tonnes_co2 * order.price_usd
     platform_fee = round(gross_usd * _PLATFORM_FEE_RATE, 2)
     net_usd = round(gross_usd - platform_fee - _MRV_COST_SHARE_USD, 2)
@@ -85,11 +148,12 @@ async def buy_credit(
 
     # Mark token as retired
     token.retired = True
+    token.retired_amount = token.tonnes_co2
     token.retired_by = order.buyer_address
     token.retired_at = datetime.now(timezone.utc)
     session.add(token)
 
-    # Record transaction
+    # ── Record transaction ──────────────────────────────────────────────────
     txn = Transaction(
         token_id=order.token_id,
         farm_id=token.farm_id,
@@ -115,5 +179,5 @@ async def buy_credit(
         net_usd=net_usd,
         net_lkr=net_lkr,
         tx_hash=retire_tx,
-        block_explorer_url=f"https://mumbai.polygonscan.com/tx/{retire_tx}",
+        block_explorer_url=f"{_EXPLORER}/tx/{retire_tx}",
     )
