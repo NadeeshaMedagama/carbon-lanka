@@ -12,6 +12,7 @@ class FarmInput(SQLModel):
     fertiliser_kg_ha_yr: float = Field(default=0.0, ge=0, description="Synthetic fertiliser applied (kg/ha/yr)")
     fuel_litres_yr: float = Field(default=0.0, ge=0, description="Fossil fuel used per year (litres)")
     solar_kw_installed: Optional[float] = Field(default=None, description="For solar co-ops: installed kW capacity")
+    soil_type: str = Field(default="HAC", description="Soil type: HAC (high activity clay), LAC (low activity clay), Sandy, Volcanic, Wetland")
     farmer_name: Optional[str] = None
     district: Optional[str] = Field(default="Nuwara Eliya")
     latitude: Optional[float] = None
@@ -30,6 +31,7 @@ class Farm(SQLModel, table=True):
     fertiliser_kg_ha_yr: float = 0.0
     fuel_litres_yr: float = 0.0
     solar_kw_installed: Optional[float] = None
+    soil_type: str = Field(default="HAC")
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     estimated_tonnes_co2: Optional[float] = None

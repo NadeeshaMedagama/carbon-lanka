@@ -19,10 +19,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
-_PLATFORM_FEE_RATE = 0.06
-_MRV_COST_SHARE_USD = 75.0
-_EXPLORER = settings.block_explorer_base_url
-
 
 @router.get("")
 async def list_listings(session: AsyncSession = Depends(get_session)) -> list[dict]:
@@ -35,33 +31,22 @@ async def list_listings(session: AsyncSession = Depends(get_session)) -> list[di
     listings = []
     for token in tokens:
         farm = await session.get(Farm, token.farm_id)
-        price_usd = round(
-            token.tonnes_co2
-            * (settings.carbon_price_min + settings.carbon_price_max)
-            / 2,
-            2,
-        )
-        listings.append(
-            {
-                "token_id": token.token_id,
-                "farm_id": token.farm_id,
-                "farmer_name": farm.farmer_name if farm else "Unknown",
-                "district": farm.district if farm else "",
-                "crop_type": farm.crop_type if farm else token.methodology,
-                "tonnes_co2": token.tonnes_co2,
-                "vintage": token.vintage,
-                "methodology": token.methodology,
-                "price_usd": price_usd,
-                "price_per_tonne_usd": (
-                    settings.carbon_price_min + settings.carbon_price_max
-                )
-                / 2,
-                "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
-                "tx_hash": token.tx_hash,
-                "block_explorer_url": f"{_EXPLORER}/tx/{token.tx_hash}",
-                "on_chain": token.on_chain,
-            }
-        )
+        price_usd = round(token.tonnes_co2 * (settings.carbon_price_min + settings.carbon_price_max) / 2, 2)
+        listings.append({
+            "token_id": token.token_id,
+            "farm_id": token.farm_id,
+            "farmer_name": farm.farmer_name if farm else "Unknown",
+            "district": farm.district if farm else "",
+            "crop_type": token.methodology,
+            "tonnes_co2": token.tonnes_co2,
+            "vintage": token.vintage,
+            "methodology": token.methodology,
+            "price_usd": price_usd,
+            "price_per_tonne_usd": (settings.carbon_price_min + settings.carbon_price_max) / 2,
+            "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
+            "tx_hash": token.tx_hash,
+            "block_explorer_url": f"{settings.polygon_block_explorer_url}/{token.tx_hash}",
+        })
 
     return listings
 
@@ -95,51 +80,10 @@ async def buy_credit(
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
 
-    # ── On-chain verification (if blockchain enabled and tx hash provided) ──
-    blockchain = get_blockchain_service()
-    use_chain = (
-        blockchain is not None
-        and settings.use_real_blockchain
-        and order.retire_tx_hash
-    )
-
-    if use_chain:
-        try:
-            chain_data = await blockchain.verify_retirement(
-                tx_hash=order.retire_tx_hash,
-                expected_token_id=order.token_id,
-            )
-            logger.info(
-                "On-chain retirement verified for token #%d: %s",
-                order.token_id,
-                chain_data,
-            )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=422,
-                detail=f"On-chain retirement verification failed: {exc}",
-            )
-        except Exception as exc:
-            logger.error(
-                "Blockchain verification error for token #%d: %s",
-                order.token_id,
-                exc,
-            )
-            raise HTTPException(
-                status_code=502,
-                detail=f"Could not verify retirement on-chain: {exc}",
-            )
-        retire_tx = order.retire_tx_hash
-    else:
-        retire_seed = (
-            f"retire:{order.token_id}:{order.buyer_address}:{datetime.utcnow()}"
-        )
-        retire_tx = "0x" + hashlib.sha256(retire_seed.encode()).hexdigest()
-
-    # ── Payout calculation ──────────────────────────────────────────────────
+    # Calculate payout (all rates from settings — no hardcoded values)
     gross_usd = token.tonnes_co2 * order.price_usd
-    platform_fee = round(gross_usd * _PLATFORM_FEE_RATE, 2)
-    net_usd = round(gross_usd - platform_fee - _MRV_COST_SHARE_USD, 2)
+    platform_fee = round(gross_usd * settings.platform_fee_rate, 2)
+    net_usd = round(gross_usd - platform_fee - settings.mrv_cost_per_token_usd, 2)
     net_lkr = round(net_usd * settings.usd_to_lkr, 0)
 
     # Simulate retirement tx hash
@@ -175,9 +119,9 @@ async def buy_credit(
         tonnes_co2=token.tonnes_co2,
         gross_usd=round(gross_usd, 2),
         platform_fee_usd=platform_fee,
-        mrv_cost_share_usd=_MRV_COST_SHARE_USD,
+        mrv_cost_share_usd=settings.mrv_cost_per_token_usd,
         net_usd=net_usd,
         net_lkr=net_lkr,
         tx_hash=retire_tx,
-        block_explorer_url=f"{_EXPLORER}/tx/{retire_tx}",
+        block_explorer_url=f"{settings.polygon_block_explorer_url}/{retire_tx}",
     )

@@ -1,53 +1,55 @@
 import logging
-
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.db.database import init_db
 from app.api.routes import mrv, farms, credits, marketplace
+from app.config import settings
+
+# ── Logging setup ─────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("carbonlanka")
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log.info("=== CarbonLanka API starting up ===")
+    log.info("DB  : %s", settings.database_url)
+    log.info("GEE : project=%s  key_set=%s",
+             settings.gee_project_id or "(not set)",
+             bool(settings.gee_service_account_key))
+    log.info("Price range: $%.0f – $%.0f / t CO2  |  1 USD = %.0f LKR",
+             settings.carbon_price_min, settings.carbon_price_max, settings.usd_to_lkr)
     await init_db()
+    log.info("Database initialised")
 
-    if settings.use_real_blockchain:
-        if not settings.deployer_private_key:
-            logger.warning(
-                "USE_REAL_BLOCKCHAIN=true but DEPLOYER_PRIVATE_KEY is empty — "
-                "blockchain features will be unavailable"
-            )
-        elif not settings.carbon_credit_contract_address:
-            logger.warning(
-                "USE_REAL_BLOCKCHAIN=true but CARBON_CREDIT_CONTRACT_ADDRESS is empty — "
-                "blockchain features will be unavailable"
-            )
-        else:
-            from app.core.blockchain import init_blockchain_service
+    # Initialize Google Earth Engine
+    try:
+        from app.core.gee_client import init_gee
+        gee_ok = init_gee()
+        log.info("GEE  : %s", "connected (live Sentinel-2)" if gee_ok else "demo mode (no credentials)")
+    except Exception as exc:
+        log.warning("GEE  : init failed (%s) — running in demo mode", exc)
 
-            svc = init_blockchain_service(
-                rpc_url=settings.polygon_amoy_rpc,
-                private_key=settings.deployer_private_key,
-                contract_address=settings.carbon_credit_contract_address,
-            )
-            info = await svc.check_connection()
-            if info["connected"]:
-                logger.info(
-                    "Blockchain connected — chain=%s verifier=%s balance=%.4f POL",
-                    info["chain_id"],
-                    info["verifier_address"],
-                    info["verifier_balance_pol"],
-                )
-            else:
-                logger.warning("Blockchain RPC not reachable at %s", settings.polygon_amoy_rpc)
-    else:
-        logger.info("Blockchain disabled (USE_REAL_BLOCKCHAIN=false) — using simulated mode")
+    # Load KGML model
+    try:
+        from app.core.kgml_model import _load_model, is_model_loaded
+        _load_model()
+        log.info("KGML : %s", "model loaded" if is_model_loaded() else "model not found (run notebooks to train)")
+    except Exception as exc:
+        log.warning("KGML : load failed (%s) — endpoint disabled", exc)
 
     yield
+    log.info("=== CarbonLanka API shutting down ===")
 
 
 app = FastAPI(
@@ -72,6 +74,16 @@ app.include_router(mrv.router)
 app.include_router(farms.router)
 app.include_router(credits.router)
 app.include_router(marketplace.router)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - t0) * 1000
+    log.info("%s %s  →  %d  (%.0f ms)",
+             request.method, request.url.path, response.status_code, ms)
+    return response
 
 
 @app.get("/health")

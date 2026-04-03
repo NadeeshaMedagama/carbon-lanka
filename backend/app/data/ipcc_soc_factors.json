@@ -1,0 +1,231 @@
+{
+  "_source": "IPCC 2019 Refinement to the 2006 IPCC Guidelines for National GHG Inventories, Volume 4: Agriculture, Forestry and Other Land Use, Chapter 2, Tables 2.3 & 2.5",
+  "_equation": "SOC = SOC_REF x F_LU x F_MG x F_I  (Eq. 2.25)",
+  "_note": "SOC_REF values in t C ha-1. Annual DELTA_SOC = (SOC_new - SOC_baseline) / 20-yr equilibration period. Convert C to CO2: multiply by 44/12.",
+
+  "soc_ref": {
+    "_comment": "Reference SOC stocks (t C ha-1, 0-30 cm) by climate zone and soil type. Table 2.3, IPCC 2019 Vol.4.",
+    "tropical_montane": {
+      "HAC": 51.0,
+      "LAC": 44.0,
+      "Sandy": 52.0,
+      "Volcanic": 130.0,
+      "Wetland": 86.0
+    },
+    "tropical_wet": {
+      "HAC": 60.0,
+      "LAC": 52.0,
+      "Sandy": 46.0,
+      "Volcanic": 130.0,
+      "Wetland": 86.0
+    },
+    "tropical_moist": {
+      "HAC": 40.0,
+      "LAC": 38.0,
+      "Sandy": 27.0,
+      "Volcanic": 70.0,
+      "Wetland": 86.0
+    },
+    "tropical_dry": {
+      "HAC": 21.0,
+      "LAC": 19.0,
+      "Sandy": 9.0,
+      "Volcanic": 58.0,
+      "Wetland": 86.0
+    }
+  },
+
+  "f_lu": {
+    "_comment": "Land-use factor F_LU. Accounts for SOC difference between land-use type and the reference (undisturbed native vegetation). Table 5.5 / 6.2.",
+    "cropland_annual":    { "value": 0.82, "note": "Annual crop, full tillage — reference is native vegetation" },
+    "cropland_perennial": { "value": 0.94, "note": "Perennial crop (tea, rubber, coconut) — closer to native vegetation" },
+    "agroforestry":       { "value": 1.00, "note": "Trees + crops — treated equivalent to reference forest" },
+    "forest":             { "value": 1.00, "note": "Reference forest land use" },
+    "grassland":          { "value": 1.05, "note": "Permanent grassland, well managed" },
+    "paddy":              { "value": 1.10, "note": "Flooded paddy rice — elevated SOC due to anaerobic decomposition" }
+  },
+
+  "f_mg": {
+    "_comment": "Management factor F_MG. Captures the effect of tillage and water management practices on SOC. Table 5.5.",
+    "conventional_management":   { "value": 1.00, "note": "Baseline: full-till conventional, no special water management" },
+    "organic_conversion":        { "value": 1.08, "note": "Switching from conventional to certified organic management" },
+    "agroforestry_adoption":     { "value": 1.15, "note": "Intercropping shade trees into monoculture perennial crop" },
+    "forest_regen":              { "value": 1.20, "note": "Active reforestation / natural regeneration on degraded land" },
+    "improved_water_management": { "value": 1.14, "note": "Paddy: intermittent flooding vs continuous flood — CH4 reduction" },
+    "reduced_till":              { "value": 1.02, "note": "Reduced or no-till cultivation" },
+    "solar_install":             { "value": 1.00, "note": "Not applicable for energy displacement projects" }
+  },
+
+  "f_i": {
+    "_comment": "Carbon input factor F_I. Reflects organic matter inputs to soil. Table 5.5.",
+    "none":    { "value": 0.92, "note": "No external carbon inputs, residues removed" },
+    "low":     { "value": 1.00, "note": "Low: crop residues returned, no amendments — reference level" },
+    "medium":  { "value": 1.04, "note": "Medium: some compost or green manure applied" },
+    "high":    { "value": 1.11, "note": "High: regular compost + cover crops + mulch" },
+    "organic": { "value": 1.44, "note": "Organic certified: all residues retained + compost + mulch + no synthetic inputs" }
+  },
+
+  "crop_f_lu": {
+    "_comment": "Default F_LU land-use category per crop type.",
+    "tea_organic":         "cropland_perennial",
+    "tea_conventional":    "cropland_perennial",
+    "rubber_agroforestry": "agroforestry",
+    "paddy_rice":          "paddy",
+    "spice_cinnamon":      "cropland_perennial",
+    "coconut_organic":     "cropland_perennial",
+    "forest_regen":        "forest",
+    "solar_cooperative":   "cropland_annual"
+  },
+
+  "crop_f_i_new": {
+    "_comment": "F_I for the new (post-change) practice per crop type.",
+    "tea_organic":         "organic",
+    "tea_conventional":    "low",
+    "rubber_agroforestry": "medium",
+    "paddy_rice":          "low",
+    "spice_cinnamon":      "medium",
+    "coconut_organic":     "organic",
+    "forest_regen":        "none",
+    "solar_cooperative":   "none"
+  },
+
+  "baseline_f_mg": {
+    "_comment": "F_MG for the pre-change baseline practice (always conventional_management).",
+    "tea_organic":         "conventional_management",
+    "tea_conventional":    "conventional_management",
+    "rubber_agroforestry": "conventional_management",
+    "paddy_rice":          "conventional_management",
+    "spice_cinnamon":      "conventional_management",
+    "coconut_organic":     "conventional_management",
+    "forest_regen":        "conventional_management",
+    "solar_cooperative":   "conventional_management"
+  },
+
+  "baseline_f_i": {
+    "_comment": "F_I for the pre-change baseline carbon inputs (always low or none).",
+    "tea_organic":         "low",
+    "tea_conventional":    "low",
+    "rubber_agroforestry": "low",
+    "paddy_rice":          "low",
+    "spice_cinnamon":      "low",
+    "coconut_organic":     "low",
+    "forest_regen":        "none",
+    "solar_cooperative":   "none"
+  },
+
+  "district_climate_zone": {
+    "_comment": "Maps Sri Lankan districts to IPCC tropical climate sub-zones.",
+    "Nuwara Eliya": "tropical_montane",
+    "Badulla":      "tropical_montane",
+    "Kandy":        "tropical_wet",
+    "Ratnapura":    "tropical_wet",
+    "Kegalle":      "tropical_wet",
+    "Matale":       "tropical_wet",
+    "Gampaha":      "tropical_moist",
+    "Colombo":      "tropical_moist",
+    "Kurunegala":   "tropical_moist",
+    "Puttalam":     "tropical_moist",
+    "Hambantota":   "tropical_dry",
+    "Vavuniya":     "tropical_dry",
+    "Mannar":       "tropical_dry",
+    "Ampara":       "tropical_moist",
+    "Trincomalee":  "tropical_moist",
+    "Batticaloa":   "tropical_moist",
+    "Polonnaruwa":  "tropical_moist",
+    "Anuradhapura": "tropical_dry",
+    "Monaragala":   "tropical_dry",
+    "Galle":        "tropical_wet",
+    "Matara":       "tropical_wet",
+    "Kalutara":     "tropical_wet"
+  },
+
+  "solar_factors": {
+    "_comment": "Displacement credits for solar co-operatives — energy methodology, not SOC-based.",
+    "displacement_factor_t_co2_per_kwh": 0.00082,
+    "avg_annual_kwh_per_kw": 1600,
+    "methodology": "IPCC Tier-1 Energy — Sri Lanka grid emission factor 2023 (0.82 kg CO2/kWh)"
+  },
+
+  "paddy_methane": {
+    "_comment": "CH4 emissions from flooded paddy rice, IPCC 2006 Vol.4 Chapter 5.",
+    "emission_factor_t_co2e_ha_yr": 2.8,
+    "note": "Tier-2, Sri Lanka conditions, continuous flooding baseline"
+  },
+
+  "tier_uncertainty": {
+    "_comment": "Uncertainty bounds (%) per methodology tier. Used to set tonnes_co2_min/max.",
+    "Tier-1": 60.0,
+    "Tier-2": 28.0,
+    "Tier-2+Satellite": 15.0
+  },
+
+  "tier_confidence": {
+    "_comment": "Confidence score (0-100) shown to farmers per tier.",
+    "Tier-1": 72.0,
+    "Tier-2": 88.0,
+    "Tier-2+Satellite": 95.0
+  },
+
+  "emission_factors": {
+    "_comment": "Activity-level emission factors used to deduct from gross sequestration.",
+    "diesel_co2_t_per_litre": 0.002676,
+    "_diesel_ref": "IPCC 2006 Vol.2 Table 3.2.1 — diesel combustion factor",
+    "fertiliser_n2o_co2e_t_per_kg_n": 0.00298,
+    "_fertiliser_ref": "IPCC 2006 Table 11.1 — EF1=0.01 kg N2O-N / kg N applied, GWP N2O=298",
+    "confidence_reduction_no_fertiliser_data": 2.0,
+    "_confidence_note": "Points subtracted from confidence when fertiliser not reported for non-organic crops",
+    "min_confidence_floor": 50.0
+  },
+
+  "soc_calculation": {
+    "_comment": "Physical constants and parameters for IPCC Eq. 2.25 SOC stock-change calculation.",
+    "equilibration_years": 20,
+    "_equilibration_ref": "IPCC 2019 Section 2.3.3.1 — default 20-year equilibration period for mineral soils",
+    "c_to_co2_ratio": 3.6667,
+    "_c_to_co2_note": "44/12 molar mass ratio of CO2 to C (exact: 3.66667)"
+  },
+
+  "satellite_validation": {
+    "_comment": "Parameters for Sentinel-2 NDVI cross-check (Lasaponara et al. 2022).",
+    "anomaly_threshold_fraction": 0.10,
+    "_anomaly_note": "Flag if reported > satellite-expected midpoint by more than this fraction (10%)",
+    "ndvi_range_upper_multiplier": 1.1,
+    "_range_note": "Allow reported value up to 10% above the high end of expected range before blocking tier upgrade",
+    "ndvi_scores": {
+      "_comment": "Pre-computed NDVI scores from GEE Sentinel-2 median composites, representative Sri Lankan farm polygons, 2024 dry season, bands B8/B4.",
+      "tea_organic":         0.74,
+      "tea_conventional":    0.61,
+      "paddy_rice":          0.58,
+      "rubber_agroforestry": 0.81,
+      "spice_cinnamon":      0.69,
+      "solar_cooperative":   0.15,
+      "forest_regen":        0.86,
+      "coconut_organic":     0.72,
+      "_default":            0.60
+    },
+    "ndvi_seq_range_t_co2_ha_yr": {
+      "_comment": "Expected net sequestration range (t CO2/ha/yr) per crop type, calibrated against NDVI for Sri Lankan tropical conditions.",
+      "tea_organic":         [3.0, 9.0],
+      "tea_conventional":    [0.5, 3.5],
+      "paddy_rice":          [0.0, 2.0],
+      "rubber_agroforestry": [5.0, 14.0],
+      "spice_cinnamon":      [2.5, 8.0],
+      "solar_cooperative":   [0.5, 5.0],
+      "forest_regen":        [8.0, 20.0],
+      "coconut_organic":     [2.0, 7.0],
+      "_default":            [0.0, 30.0]
+    },
+    "ndvi_trend_direction": {
+      "_comment": "NDVI trend direction per crop (Lasaponara et al. approach). 'positive' = vegetation density increasing over time, corroborates sequestration claim, enables tier upgrade.",
+      "tea_organic":         "positive",
+      "tea_conventional":    "neutral",
+      "paddy_rice":          "neutral",
+      "rubber_agroforestry": "positive",
+      "spice_cinnamon":      "neutral",
+      "solar_cooperative":   "neutral",
+      "forest_regen":        "positive",
+      "coconut_organic":     "positive",
+      "_default":            "neutral"
+    }
+  }
+}

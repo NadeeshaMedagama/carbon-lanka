@@ -19,11 +19,6 @@ from app.models.farm import Farm
 from app.models.credit import PoolBundle
 from app.config import settings
 
-_PLATFORM_FEE_RATE = 0.06          # 6% transaction fee
-_TOTAL_MRV_COST_USD = 40_000.0     # shared Verra verification cost
-_VERRA_MINIMUM_TONNES = 10_000.0
-
-
 async def get_pool_bundle(session: AsyncSession) -> PoolBundle:
     """Build a PoolBundle summary from all farms currently in the pool."""
     result = await session.exec(select(Farm).where(Farm.in_pool == True))
@@ -34,8 +29,8 @@ async def get_pool_bundle(session: AsyncSession) -> PoolBundle:
 
     price_avg = (settings.carbon_price_min + settings.carbon_price_max) / 2
     gross_usd = total_tonnes * price_avg
-    platform_fee = gross_usd * _PLATFORM_FEE_RATE
-    mrv_cost_per_farm = _TOTAL_MRV_COST_USD / max(total_farms, 1)
+    platform_fee = gross_usd * settings.platform_fee_rate
+    mrv_cost_per_farm = settings.total_mrv_verification_cost_usd / max(total_farms, 1)
     total_mrv_cost = mrv_cost_per_farm * total_farms
     net_to_farmers_usd = gross_usd - platform_fee - total_mrv_cost
     net_to_farmers_lkr = net_to_farmers_usd * settings.usd_to_lkr
@@ -66,7 +61,7 @@ async def get_pool_bundle(session: AsyncSession) -> PoolBundle:
         shared_mrv_cost_usd=round(total_mrv_cost, 2),
         net_to_farmers_usd=round(net_to_farmers_usd, 2),
         net_to_farmers_lkr=round(net_to_farmers_lkr, 0),
-        meets_verra_minimum=total_tonnes >= _VERRA_MINIMUM_TONNES,
-        verra_minimum_tonnes=_VERRA_MINIMUM_TONNES,
+        meets_verra_minimum=total_tonnes >= settings.verra_minimum_tonnes,
+        verra_minimum_tonnes=settings.verra_minimum_tonnes,
         pool_members=members,
     )

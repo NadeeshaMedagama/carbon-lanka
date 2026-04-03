@@ -9,19 +9,39 @@ class MRVResult(SQLModel):
     crop_type: str
     land_area_ha: float
     tonnes_co2_net: float
-    tonnes_co2_min: float  # lower bound at ±8% uncertainty
-    tonnes_co2_max: float  # upper bound at ±8% uncertainty
-    uncertainty_pct: float = 8.0
+    tonnes_co2_min: float  # lower bound at uncertainty range
+    tonnes_co2_max: float  # upper bound at uncertainty range
+    uncertainty_pct: float = 28.0  # Tier-2 default; 15.0 after satellite, 60.0 for Tier-1
     confidence_score: float  # 0–100
     value_usd_min: float
     value_usd_max: float
     value_lkr_min: float
     value_lkr_max: float
     methodology: str
+    # IPCC 2019 SOC calculation details (Eq. 2.25)
+    tier: str = "Tier-2"              # "Tier-1" | "Tier-2" | "Tier-2+Satellite"
+    soc_ref_value: float = 0.0        # SOC_REF from Table 2.3 (t C ha⁻¹)
+    delta_soc_annual: float = 0.0     # ΔSOC annual (t C ha⁻¹ yr⁻¹) before CO2 conversion
+    climate_zone: str = ""            # e.g. "tropical_montane"
+    soil_type: str = "HAC"
+    # KGML model results (Liu et al. 2024 — KGML-ag-Carbon)
+    kgml_delta_soc: Optional[float] = None      # KGML predicted ΔSOC (t C/ha/yr)
+    kgml_co2_net: Optional[float] = None         # KGML predicted net CO2 (t CO2/yr)
+    kgml_confidence: Optional[float] = None      # KGML MC-Dropout confidence (0-100)
+    kgml_enabled: bool = False                    # True when KGML model was used
+    ensemble_weight_kgml: Optional[float] = None  # Weight given to KGML in ensemble (0-1)
+    # Satellite verification
     satellite_verified: bool = False
     satellite_ndvi_score: Optional[float] = None
     anomaly_flag: bool = False
-    calculated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Claim validity status — set by satellite verification
+    # "VERIFIED"  : GEE confirmed land use matches claimed crop type
+    # "UNVERIFIED": No GEE data available, result based on farmer's claim only
+    # "SUSPICIOUS": GEE data available but NDVI below expected range (mild mismatch)
+    # "REJECTED"  : GEE confirmed land use does NOT match claimed crop (NDVI mismatch)
+    claim_status: str = "UNVERIFIED"
+    claim_status_reason: Optional[str] = None
+    calculated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class CreditToken(SQLModel, table=True):

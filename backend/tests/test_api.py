@@ -2,16 +2,34 @@
 
 import pytest
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.main import app
-from app.db.database import init_db
+from app.db.database import get_session
 
 
 @pytest.fixture(scope="module")
 async def client():
-    await init_db()
+    # Use a fresh in-memory SQLite DB for every test run — never stale schema
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    TestSession = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    async def override_get_session():
+        async with TestSession() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
+
+    app.dependency_overrides.clear()
+    await test_engine.dispose()
 
 
 @pytest.mark.anyio
