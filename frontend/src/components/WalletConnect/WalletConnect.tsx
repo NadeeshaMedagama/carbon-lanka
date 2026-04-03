@@ -7,7 +7,7 @@ export function WalletConnect() {
     <div className="flex items-center gap-2">
       {account ? (
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-carbon-800 border border-carbon-600 text-carbon-400 text-sm font-mono">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-carbon-900/40 border border-carbon-700/60 text-carbon-300 text-sm font-mono">
             <span className="w-2 h-2 rounded-full bg-carbon-500 animate-pulse" />
             {shortAccount}
           </span>
@@ -41,7 +41,7 @@ export function WalletConnect() {
           )}
         </button>
       )}
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-red-400 text-xs max-w-48 truncate" title={error}>{error}</p>}
     </div>
   );
 }
