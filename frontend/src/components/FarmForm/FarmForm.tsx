@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FarmInput } from "../../types";
 import { CROP_LABELS, PRACTICE_LABELS } from "../../utils/formatters";
+import { api } from "../../services/api";
 
 interface Props {
   onCalculate: (farm: FarmInput) => void;
@@ -18,7 +19,36 @@ const PRACTICE_BY_CROP: Record<string, string[]> = {
   coconut_organic: ["organic_conversion"],
 };
 
+const SRI_LANKA_DISTRICTS = [
+  "Ampara",
+  "Anuradhapura",
+  "Badulla",
+  "Batticaloa",
+  "Colombo",
+  "Galle",
+  "Gampaha",
+  "Hambantota",
+  "Jaffna",
+  "Kalutara",
+  "Kandy",
+  "Kegalle",
+  "Kilinochchi",
+  "Kurunegala",
+  "Mannar",
+  "Matale",
+  "Matara",
+  "Monaragala",
+  "Mullaitivu",
+  "Nuwara Eliya",
+  "Polonnaruwa",
+  "Puttalam",
+  "Ratnapura",
+  "Trincomalee",
+  "Vavuniya",
+];
+
 export function FarmForm({ onCalculate, loading }: Props) {
+  const [cropOptions, setCropOptions] = useState<{ key: string; label: string }[]>([]);
   const [form, setForm] = useState<FarmInput>({
     land_area_ha: 2.02,
     crop_type: "tea_organic",
@@ -30,11 +60,40 @@ export function FarmForm({ onCalculate, loading }: Props) {
     district: "Nuwara Eliya",
   });
 
+  useEffect(() => {
+    api
+      .getCropTypes()
+      .then((rows) => {
+        const options = rows
+          .map((row) => ({ key: row.key, label: row.label || row.key }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setCropOptions(options);
+
+        // Keep form crop valid if backend list differs from static defaults.
+        if (options.length > 0 && !options.some((o) => o.key === form.crop_type)) {
+          const nextCrop = options[0].key;
+          const practices = PRACTICE_BY_CROP[nextCrop] ?? ["conventional_management"];
+          setForm((prev) => ({ ...prev, crop_type: nextCrop, practice_change: practices[0] }));
+        }
+      })
+      .catch(() => {
+        // Keep fallback static list when API is unavailable.
+        setCropOptions([]);
+      });
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const availableCropOptions = useMemo(() => {
+    if (cropOptions.length > 0) return cropOptions;
+    return Object.entries(CROP_LABELS).map(([key, label]) => ({ key, label }));
+  }, [cropOptions]);
+
   const set = (k: keyof FarmInput, v: string | number) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
   const handleCropChange = (crop: string) => {
-    const practices = PRACTICE_BY_CROP[crop] ?? ["organic_conversion"];
+    const practices = PRACTICE_BY_CROP[crop] ?? ["conventional_management"];
     setForm((prev) => ({ ...prev, crop_type: crop, practice_change: practices[0] }));
   };
 
@@ -69,7 +128,7 @@ export function FarmForm({ onCalculate, loading }: Props) {
             onChange={(e) => set("district", e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white focus:outline-none focus:border-carbon-500"
           >
-            {["Nuwara Eliya", "Ratnapura", "Gampaha", "Kandy", "Matale", "Badulla", "Kurunegala", "Kegalle"].map(d => (
+            {SRI_LANKA_DISTRICTS.map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
@@ -100,8 +159,8 @@ export function FarmForm({ onCalculate, loading }: Props) {
             onChange={(e) => handleCropChange(e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white focus:outline-none focus:border-carbon-500"
           >
-            {Object.entries(CROP_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+            {availableCropOptions.map((crop) => (
+              <option key={crop.key} value={crop.key}>{crop.label}</option>
             ))}
           </select>
         </div>
@@ -114,7 +173,7 @@ export function FarmForm({ onCalculate, loading }: Props) {
             onChange={(e) => set("practice_change", e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white focus:outline-none focus:border-carbon-500"
           >
-            {(PRACTICE_BY_CROP[form.crop_type] ?? ["organic_conversion"]).map(p => (
+            {(PRACTICE_BY_CROP[form.crop_type] ?? ["conventional_management"]).map(p => (
               <option key={p} value={p}>{PRACTICE_LABELS[p] ?? p}</option>
             ))}
           </select>
