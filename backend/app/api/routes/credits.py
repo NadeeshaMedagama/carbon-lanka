@@ -8,6 +8,7 @@ from app.db.database import get_session
 from app.models.credit import CreditToken, PoolBundle
 from app.models.farm import Farm
 from app.core.pooling import get_pool_bundle
+from app.config import settings
 
 router = APIRouter(prefix="/credits", tags=["Credits"])
 
@@ -61,7 +62,7 @@ async def mint_credit(
         "farm_id": farm_id,
         "tonnes_co2": farm.estimated_tonnes_co2,
         "tx_hash": tx_hash,
-        "block_explorer_url": f"https://mumbai.polygonscan.com/tx/{tx_hash}",
+        "block_explorer_url": f"{settings.polygon_block_explorer_url}/{tx_hash}",
         "network": "Polygon Mumbai Testnet",
         "standard": "ERC-1155",
         "methodology": "Verra VMD0042",

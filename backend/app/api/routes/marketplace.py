@@ -12,9 +12,6 @@ from app.config import settings
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
-_PLATFORM_FEE_RATE = 0.06
-_MRV_COST_SHARE_USD = 75.0  # shared MRV cost per farm (200 farms sharing $15K)
-
 
 @router.get("")
 async def list_listings(session: AsyncSession = Depends(get_session)) -> list[dict]:
@@ -41,7 +38,7 @@ async def list_listings(session: AsyncSession = Depends(get_session)) -> list[di
             "price_per_tonne_usd": (settings.carbon_price_min + settings.carbon_price_max) / 2,
             "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
             "tx_hash": token.tx_hash,
-            "block_explorer_url": f"https://mumbai.polygonscan.com/tx/{token.tx_hash}",
+            "block_explorer_url": f"{settings.polygon_block_explorer_url}/{token.tx_hash}",
         })
 
     return listings
@@ -73,10 +70,10 @@ async def buy_credit(
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
 
-    # Calculate payout
+    # Calculate payout (all rates from settings — no hardcoded values)
     gross_usd = token.tonnes_co2 * order.price_usd
-    platform_fee = round(gross_usd * _PLATFORM_FEE_RATE, 2)
-    net_usd = round(gross_usd - platform_fee - _MRV_COST_SHARE_USD, 2)
+    platform_fee = round(gross_usd * settings.platform_fee_rate, 2)
+    net_usd = round(gross_usd - platform_fee - settings.mrv_cost_per_token_usd, 2)
     net_lkr = round(net_usd * settings.usd_to_lkr, 0)
 
     # Simulate retirement tx hash
@@ -111,9 +108,9 @@ async def buy_credit(
         tonnes_co2=token.tonnes_co2,
         gross_usd=round(gross_usd, 2),
         platform_fee_usd=platform_fee,
-        mrv_cost_share_usd=_MRV_COST_SHARE_USD,
+        mrv_cost_share_usd=settings.mrv_cost_per_token_usd,
         net_usd=net_usd,
         net_lkr=net_lkr,
         tx_hash=retire_tx,
-        block_explorer_url=f"https://mumbai.polygonscan.com/tx/{retire_tx}",
+        block_explorer_url=f"{settings.polygon_block_explorer_url}/{retire_tx}",
     )
