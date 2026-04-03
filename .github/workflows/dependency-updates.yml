@@ -1,0 +1,78 @@
+name: Dependency Health Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+
+jobs:
+  backend-outdated:
+    name: Backend Outdated Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Generate outdated report
+        run: |
+          pip list --outdated --format=json > backend-outdated.json
+          cat backend-outdated.json
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-outdated-report
+          path: backend-outdated.json
+
+  frontend-contracts-outdated:
+    name: Frontend and Contracts Outdated Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Frontend outdated report
+        working-directory: frontend
+        run: |
+          npm outdated --json > ../frontend-outdated.json || true
+          cat ../frontend-outdated.json
+
+      - name: Install contracts dependencies
+        working-directory: contracts
+        run: npm install
+
+      - name: Contracts outdated report
+        working-directory: contracts
+        run: |
+          npm outdated --json > ../contracts-outdated.json || true
+          cat ../contracts-outdated.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-outdated-reports
+          path: |
+            frontend-outdated.json
+            contracts-outdated.json
+
