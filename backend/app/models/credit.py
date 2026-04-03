@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 
 
@@ -21,7 +21,7 @@ class MRVResult(SQLModel):
     satellite_verified: bool = False
     satellite_ndvi_score: Optional[float] = None
     anomaly_flag: bool = False
-    calculated_at: datetime = Field(default_factory=datetime.utcnow)
+    calculated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class CreditToken(SQLModel, table=True):
@@ -37,7 +37,7 @@ class CreditToken(SQLModel, table=True):
     tx_hash: str = ""  # Polygon transaction hash of mint
     retired: bool = False
     retired_by: Optional[str] = None
-    minted_at: datetime = Field(default_factory=datetime.utcnow)
+    minted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     retired_at: Optional[datetime] = None
 
 
