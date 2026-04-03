@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 
 
@@ -23,7 +23,7 @@ class Transaction(SQLModel, table=True):
     farmer_payout_usd: float
     farmer_payout_lkr: float
     tx_hash: str = ""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class PayoutDisplay(SQLModel):
