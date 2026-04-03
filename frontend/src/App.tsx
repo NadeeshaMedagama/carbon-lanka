@@ -5,33 +5,93 @@ import Marketplace from "./pages/Marketplace";
 import Dashboard from "./pages/Dashboard";
 import { WalletConnect } from "./components/WalletConnect/WalletConnect";
 
-function Nav() {
+function GlobalHeader() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `text-sm font-medium transition-colors ${isActive ? "text-carbon-400" : "text-gray-400 hover:text-white"}`;
+    `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      isActive
+        ? "bg-carbon-900/40 text-carbon-300 border border-carbon-700/40 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.15)]"
+        : "text-gray-400 hover:text-white hover:bg-white/5"
+    }`;
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 bg-forest-dark/90 backdrop-blur-md">
-      <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        <NavLink to="/" className="flex items-center gap-1.5 font-bold text-white">
-          🌿 Carbon<span className="text-carbon-400">Lanka</span>
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-forest-dark/90 backdrop-blur-md">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <NavLink to="/" className="flex items-center gap-2 font-bold text-white shrink-0">
+          <span className="text-lg">🌿</span>
+          <span className="tracking-tight">
+            Carbon<span className="text-carbon-400">Micro</span>
+          </span>
         </NavLink>
-        <div className="flex items-center gap-5">
+        <div className="hidden md:flex items-center gap-1 rounded-xl border border-white/10 bg-forest-mid/60 p-1">
+          <NavLink to="/" className={linkClass}>Overview</NavLink>
           <NavLink to="/farmer" className={linkClass}>Measure</NavLink>
           <NavLink to="/marketplace" className={linkClass}>Market</NavLink>
           <NavLink to="/dashboard" className={linkClass}>ESG</NavLink>
         </div>
-        <WalletConnect />
+        <div className="shrink-0">
+          <WalletConnect />
+        </div>
       </div>
-    </nav>
+      <div className="md:hidden max-w-6xl mx-auto px-4 pb-3">
+        <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-forest-mid/60 p-1 overflow-x-auto">
+          <NavLink to="/" className={linkClass}>Overview</NavLink>
+          <NavLink to="/farmer" className={linkClass}>Measure</NavLink>
+          <NavLink to="/marketplace" className={linkClass}>Market</NavLink>
+          <NavLink to="/dashboard" className={linkClass}>ESG</NavLink>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function GlobalFooter() {
+  const year = new Date().getFullYear();
+
+  return (
+    <footer className="border-t border-white/10 bg-forest-mid/40 mt-12">
+      <div className="max-w-6xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-6 text-sm">
+        <div>
+          <div className="font-semibold text-white">CarbonMicro</div>
+          <p className="text-gray-400 mt-2 text-xs leading-relaxed">
+            Carbon credit micro-marketplace for Sri Lankan SMEs powered by AI MRV,
+            satellite verification, and blockchain tokenisation.
+          </p>
+        </div>
+
+        <div>
+          <div className="font-semibold text-white">Platform</div>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <NavLink to="/" className="text-gray-400 hover:text-white">Overview</NavLink>
+            <span className="text-gray-600">•</span>
+            <NavLink to="/farmer" className="text-gray-400 hover:text-white">Measure</NavLink>
+            <span className="text-gray-600">•</span>
+            <NavLink to="/marketplace" className="text-gray-400 hover:text-white">Marketplace</NavLink>
+            <span className="text-gray-600">•</span>
+            <NavLink to="/dashboard" className="text-gray-400 hover:text-white">ESG Dashboard</NavLink>
+          </div>
+        </div>
+
+        <div className="md:text-right">
+          <div className="font-semibold text-white">Compliance Focus</div>
+          <p className="text-xs text-gray-400 mt-2">EU CBAM readiness · Verra-compatible pooling · On-chain retirement traceability</p>
+        </div>
+      </div>
+      <div className="border-t border-white/10">
+        <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-gray-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <span>© {year} CarbonMicro. All rights reserved.</span>
+          <span>CryptX 2.0 Finals Demo Build</span>
+        </div>
+      </div>
+    </footer>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-forest-dark text-white">
-        <Nav />
-        <main>
+      <div className="min-h-screen bg-forest-dark text-white flex flex-col">
+        <GlobalHeader />
+        <main className="pb-12 flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/farmer" element={<FarmerPage />} />
@@ -39,6 +99,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
           </Routes>
         </main>
+        <GlobalFooter />
       </div>
     </BrowserRouter>
   );

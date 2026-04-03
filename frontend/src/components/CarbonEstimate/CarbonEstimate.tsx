@@ -11,12 +11,13 @@ interface Props {
 export function CarbonEstimate({ result, onVerifySatellite, onAddToPool, verifying }: Props) {
   const avgUSD = (result.value_usd_min + result.value_usd_max) / 2;
   const avgLKR = (result.value_lkr_min + result.value_lkr_max) / 2;
+  const confidenceLabel = result.confidence_score >= 90 ? "High" : result.confidence_score >= 75 ? "Medium" : "Low";
 
   return (
     <div className="space-y-5">
       {/* Main estimate card */}
-      <div className="rounded-xl border border-carbon-700/50 bg-carbon-900/30 p-5">
-        <div className="text-center mb-4">
+      <div className="rounded-xl border border-carbon-700/50 bg-carbon-900/30 p-5 space-y-4">
+        <div className="text-center">
           <div className="text-4xl font-bold text-carbon-400">
             {formatTonnes(result.tonnes_co2_net)}
           </div>
@@ -29,26 +30,33 @@ export function CarbonEstimate({ result, onVerifySatellite, onAddToPool, verifyi
         </div>
 
         {/* Value breakdown */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-lg bg-forest-light p-3 text-center">
-            <div className="text-xl font-bold text-white">
+            <div className="text-base font-bold text-white">
               {formatUSD(result.value_usd_min)} – {formatUSD(result.value_usd_max)}
             </div>
-            <div className="text-xs text-gray-400">USD / year</div>
+            <div className="text-xs text-gray-400">USD value range</div>
           </div>
           <div className="rounded-lg bg-forest-light p-3 text-center">
-            <div className="text-xl font-bold text-yellow-400">
+            <div className="text-base font-bold text-yellow-400">
               {formatLKR(avgLKR)}
             </div>
-            <div className="text-xs text-gray-400">LKR / year (avg)</div>
+            <div className="text-xs text-gray-400">LKR estimated average</div>
+          </div>
+          <div className="rounded-lg bg-forest-light p-3 text-center">
+            <div className="text-base font-bold text-carbon-300">{formatUSD(avgUSD)}</div>
+            <div className="text-xs text-gray-400">USD estimated average</div>
           </div>
         </div>
       </div>
 
       {/* Confidence + methodology */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         <div className="rounded-lg bg-forest-light border border-white/5 p-3">
-          <div className="text-gray-400 text-xs mb-1">AI Confidence</div>
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-gray-400">AI Confidence</span>
+            <span className="text-carbon-300 font-medium">{confidenceLabel}</span>
+          </div>
           <div className="flex items-center gap-2">
             <div className="flex-1 h-2 rounded-full bg-white/10">
               <div
@@ -89,7 +97,7 @@ export function CarbonEstimate({ result, onVerifySatellite, onAddToPool, verifyi
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         {!result.satellite_verified && (
           <button
             onClick={onVerifySatellite}
@@ -107,7 +115,7 @@ export function CarbonEstimate({ result, onVerifySatellite, onAddToPool, verifyi
           onClick={onAddToPool}
           className="flex-1 py-2.5 rounded-lg bg-carbon-600 hover:bg-carbon-500 text-white text-sm font-semibold transition-colors"
         >
-          Add to Pool &rarr;
+          Continue to Pool
         </button>
       </div>
     </div>

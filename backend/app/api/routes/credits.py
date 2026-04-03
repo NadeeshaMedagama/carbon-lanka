@@ -6,6 +6,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from datetime import datetime, timezone
+import hashlib
 
 from app.config import settings
 from app.core.blockchain import get_blockchain_service
@@ -98,9 +100,9 @@ async def mint_credit(
         farm_id=farm_id,
         farmer_address=farmer_address,
         tonnes_co2=farm.estimated_tonnes_co2,
-        vintage=vintage,
-        methodology=methodology,
-        sat_hash=sat_hash_hex,
+        vintage=str(datetime.now(timezone.utc).year),
+        methodology="Verra VMD0042",
+        sat_hash=sat_hash,
         tx_hash=tx_hash,
         on_chain=on_chain,
     )

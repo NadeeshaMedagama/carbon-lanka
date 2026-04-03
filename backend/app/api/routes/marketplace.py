@@ -5,6 +5,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+import hashlib
+from datetime import datetime, timezone
 
 from app.config import settings
 from app.core.blockchain import get_blockchain_service
@@ -140,12 +142,15 @@ async def buy_credit(
     net_usd = round(gross_usd - platform_fee - _MRV_COST_SHARE_USD, 2)
     net_lkr = round(net_usd * settings.usd_to_lkr, 0)
 
-    # ── Update token record ─────────────────────────────────────────────────
+    # Simulate retirement tx hash
+    retire_seed = f"retire:{order.token_id}:{order.buyer_address}:{datetime.now(timezone.utc)}"
+    retire_tx = "0x" + hashlib.sha256(retire_seed.encode()).hexdigest()
+
+    # Mark token as retired
     token.retired = True
     token.retired_amount = token.tonnes_co2
     token.retired_by = order.buyer_address
-    token.retire_tx_hash = retire_tx
-    token.retired_at = datetime.utcnow()
+    token.retired_at = datetime.now(timezone.utc)
     session.add(token)
 
     # ── Record transaction ──────────────────────────────────────────────────

@@ -7,6 +7,9 @@ export default {
         carbon: {
           50: "#f0fdf4",
           100: "#dcfce7",
+          200: "#bbf7d0",
+          300: "#86efac",
+          400: "#4ade80",
           500: "#22c55e",
           600: "#16a34a",
           700: "#15803d",
@@ -14,6 +17,7 @@ export default {
           900: "#14532d",
         },
         forest: {
+          50: "#1f4b30",
           dark: "#0d1f14",
           mid: "#132a1a",
           light: "#1a3a22",

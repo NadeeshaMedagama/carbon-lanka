@@ -19,6 +19,7 @@ export function CreditCard({ credit, onBuy, buying }: Props) {
           <div className="text-gray-400 text-xs mt-0.5">
             {credit.farmer_name} · {credit.district}
           </div>
+          <div className="text-gray-500 text-[11px] mt-0.5">{credit.methodology}</div>
         </div>
         <span className="px-2 py-0.5 rounded-full bg-carbon-900/50 border border-carbon-700/50 text-carbon-400 text-xs font-medium whitespace-nowrap">
           {credit.vintage}
@@ -58,6 +59,7 @@ export function CreditCard({ credit, onBuy, buying }: Props) {
 
       {/* Token info */}
       <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-white/5 pt-2">
+        <span className="px-1.5 py-0.5 rounded bg-emerald-900/30 text-emerald-400">Token #{credit.token_id}</span>
         <span className="px-1.5 py-0.5 rounded bg-purple-900/30 text-purple-400">ERC-1155</span>
         <span className="px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400">Polygon</span>
         <a

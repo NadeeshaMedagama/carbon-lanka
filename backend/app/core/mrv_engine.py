@@ -16,7 +16,7 @@ Formula:
 
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.farm import FarmInput
 from app.models.credit import MRVResult
@@ -126,5 +126,5 @@ def calculate_carbon(farm: FarmInput) -> MRVResult:
         value_lkr_min=value_lkr_min,
         value_lkr_max=value_lkr_max,
         methodology=ef.get("methodology", "IPCC Tier-2"),
-        calculated_at=datetime.utcnow(),
+        calculated_at=datetime.now(timezone.utc),
     )

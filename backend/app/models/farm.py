@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 
 
@@ -33,7 +33,7 @@ class Farm(SQLModel, table=True):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     estimated_tonnes_co2: Optional[float] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     in_pool: bool = False
 
 

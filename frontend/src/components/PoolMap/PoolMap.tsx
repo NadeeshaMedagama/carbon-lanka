@@ -8,6 +8,8 @@ interface Props {
   totalTonnes: number;
   totalFarms: number;
   meetsMinimum: boolean;
+  verraMinimumTonnes: number;
+  totalMrvCostUsd: number;
 }
 
 function markerColor(crop: string): string {
@@ -28,13 +30,29 @@ function markerRadius(tonnes: number): number {
   return Math.max(4, Math.min(14, Math.sqrt(tonnes) * 0.6));
 }
 
-export function PoolMap({ members, totalTonnes, totalFarms, meetsMinimum }: Props) {
+export function PoolMap({
+  members,
+  totalTonnes,
+  totalFarms,
+  meetsMinimum,
+  verraMinimumTonnes,
+  totalMrvCostUsd,
+}: Props) {
   const withCoords = members.filter((m) => m.latitude && m.longitude);
+  const avgTonnes = totalFarms > 0 ? totalTonnes / totalFarms : 0;
+  const sharedCostPerFarm = totalFarms > 0 ? totalMrvCostUsd / totalFarms : 0;
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-white/10 bg-forest-light p-4">
+        <div className="text-sm text-white font-semibold">Sri Lanka Aggregation Pool</div>
+        <div className="text-xs text-gray-400 mt-1">
+          Live view of pooled farms, share allocation, and Verra threshold progress.
+        </div>
+      </div>
+
       {/* Pool stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-xl bg-forest-light border border-white/5 p-3 text-center">
           <div className="text-2xl font-bold text-carbon-400">{totalFarms}</div>
           <div className="text-xs text-gray-400">Farms in pool</div>
@@ -43,11 +61,15 @@ export function PoolMap({ members, totalTonnes, totalFarms, meetsMinimum }: Prop
           <div className="text-2xl font-bold text-white">{formatTonnes(totalTonnes)}</div>
           <div className="text-xs text-gray-400">Total CO₂</div>
         </div>
+        <div className="rounded-xl bg-forest-light border border-white/5 p-3 text-center">
+          <div className="text-2xl font-bold text-white">{formatTonnes(avgTonnes)}</div>
+          <div className="text-xs text-gray-400">Avg / farm</div>
+        </div>
         <div className={`rounded-xl border p-3 text-center ${meetsMinimum ? "bg-carbon-900/30 border-carbon-700/50" : "bg-yellow-900/20 border-yellow-700/50"}`}>
           <div className={`text-sm font-bold ${meetsMinimum ? "text-carbon-400" : "text-yellow-400"}`}>
             {meetsMinimum ? "✓ Verra Ready" : "Building…"}
           </div>
-          <div className="text-xs text-gray-400">Min 10,000 t</div>
+          <div className="text-xs text-gray-400">Min {formatTonnes(verraMinimumTonnes)}</div>
         </div>
       </div>
 
@@ -92,10 +114,14 @@ export function PoolMap({ members, totalTonnes, totalFarms, meetsMinimum }: Prop
 
       {/* Shared MRV cost callout */}
       <div className="rounded-lg bg-blue-900/20 border border-blue-700/30 p-3 text-sm">
-        <span className="text-blue-300 font-medium">$40,000 verification cost</span>
+        <span className="text-blue-300 font-medium">{formatUSD(totalMrvCostUsd)} verification cost</span>
         <span className="text-gray-400"> split {totalFarms} ways = </span>
-        <span className="text-white font-bold">{formatUSD(40000 / Math.max(totalFarms, 1))}/farm</span>
+        <span className="text-white font-bold">{formatUSD(sharedCostPerFarm)}/farm</span>
         <span className="text-gray-400"> vs $15,000–$80,000 individually</span>
+      </div>
+
+      <div className="text-xs text-gray-500">
+        Showing {withCoords.length} mapped farms with geolocation data.
       </div>
     </div>
   );
