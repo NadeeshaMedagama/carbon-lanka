@@ -1,0 +1,137 @@
+[
+  {
+    "inputs": [{"internalType": "address", "name": "admin", "type": "address"}],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256"},
+      {"indexed": true, "internalType": "address", "name": "farmer", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "tonnes", "type": "uint256"},
+      {"indexed": false, "internalType": "string", "name": "farmId", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "vintage", "type": "string"},
+      {"indexed": false, "internalType": "bytes32", "name": "satHash", "type": "bytes32"}
+    ],
+    "name": "CreditMinted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256"},
+      {"indexed": true, "internalType": "address", "name": "retiredBy", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "tonnes", "type": "uint256"},
+      {"indexed": false, "internalType": "string", "name": "farmId", "type": "string"},
+      {"indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
+    ],
+    "name": "CreditRetired",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "farmer", "type": "address"},
+      {"internalType": "uint256", "name": "tonnes", "type": "uint256"},
+      {"internalType": "string", "name": "farmId", "type": "string"},
+      {"internalType": "string", "name": "vintage", "type": "string"},
+      {"internalType": "bytes32", "name": "satHash", "type": "bytes32"}
+    ],
+    "name": "mint",
+    "outputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "retire",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
+    "name": "getCredit",
+    "outputs": [
+      {
+        "components": [
+          {"internalType": "address", "name": "farmer", "type": "address"},
+          {"internalType": "uint256", "name": "tonnes", "type": "uint256"},
+          {"internalType": "string", "name": "farmId", "type": "string"},
+          {"internalType": "string", "name": "vintage", "type": "string"},
+          {"internalType": "string", "name": "methodology", "type": "string"},
+          {"internalType": "bytes32", "name": "satHash", "type": "bytes32"},
+          {"internalType": "bool", "name": "retired", "type": "bool"},
+          {"internalType": "address", "name": "retiredBy", "type": "address"},
+          {"internalType": "uint256", "name": "retiredAt", "type": "uint256"}
+        ],
+        "internalType": "struct CarbonCredit.Credit",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
+    "name": "isRetired",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalMinted",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "account", "type": "address"},
+      {"internalType": "uint256", "name": "id", "type": "uint256"}
+    ],
+    "name": "balanceOf",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "from", "type": "address"},
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "uint256", "name": "id", "type": "uint256"},
+      {"internalType": "uint256", "name": "value", "type": "uint256"},
+      {"internalType": "bytes", "name": "data", "type": "bytes"}
+    ],
+    "name": "safeTransferFrom",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "verifier", "type": "address"}],
+    "name": "addVerifier",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "verifier", "type": "address"}],
+    "name": "removeVerifier",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "string", "name": "newuri", "type": "string"}],
+    "name": "setURI",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
