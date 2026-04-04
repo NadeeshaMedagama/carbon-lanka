@@ -1,12 +1,10 @@
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-import hashlib
-from datetime import datetime, timezone
 
 from app.config import settings
 from app.core.blockchain import get_blockchain_service
@@ -37,7 +35,7 @@ async def list_listings(session: AsyncSession = Depends(get_session)) -> list[di
             "farm_id": token.farm_id,
             "farmer_name": farm.farmer_name if farm else "Unknown",
             "district": farm.district if farm else "",
-            "crop_type": token.methodology,
+            "crop_type": farm.crop_type if farm else "",
             "tonnes_co2": token.tonnes_co2,
             "vintage": token.vintage,
             "methodology": token.methodology,
@@ -45,7 +43,8 @@ async def list_listings(session: AsyncSession = Depends(get_session)) -> list[di
             "price_per_tonne_usd": (settings.carbon_price_min + settings.carbon_price_max) / 2,
             "price_lkr": round(price_usd * settings.usd_to_lkr, 0),
             "tx_hash": token.tx_hash,
-            "block_explorer_url": f"{settings.polygon_block_explorer_url}/{token.tx_hash}",
+            "block_explorer_url": f"{settings.block_explorer_base_url}/{token.tx_hash}",
+            "on_chain": token.on_chain,
         })
 
     return listings
@@ -80,31 +79,34 @@ async def buy_credit(
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
 
-    # Calculate payout (all rates from settings — no hardcoded values)
-    gross_usd = token.tonnes_co2 * order.price_usd
+    server_price_per_tonne = (settings.carbon_price_min + settings.carbon_price_max) / 2
+    if order.price_usd < server_price_per_tonne:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Price per tonne ${order.price_usd} is below minimum ${server_price_per_tonne}",
+        )
+
+    gross_usd = server_price_per_tonne * token.tonnes_co2
     platform_fee = round(gross_usd * settings.platform_fee_rate, 2)
     net_usd = round(gross_usd - platform_fee - settings.mrv_cost_per_token_usd, 2)
     net_lkr = round(net_usd * settings.usd_to_lkr, 0)
 
-    # Simulate retirement tx hash
     retire_seed = f"retire:{order.token_id}:{order.buyer_address}:{datetime.now(timezone.utc)}"
     retire_tx = "0x" + hashlib.sha256(retire_seed.encode()).hexdigest()
 
-    # Mark token as retired
     token.retired = True
     token.retired_amount = token.tonnes_co2
     token.retired_by = order.buyer_address
     token.retired_at = datetime.now(timezone.utc)
     session.add(token)
 
-    # ── Record transaction ──────────────────────────────────────────────────
     txn = Transaction(
         token_id=order.token_id,
         farm_id=token.farm_id,
         seller_address=token.farmer_address,
         buyer_address=order.buyer_address,
-        price_usd=order.price_usd * token.tonnes_co2,
-        price_lkr=round(order.price_usd * token.tonnes_co2 * settings.usd_to_lkr, 0),
+        price_usd=gross_usd,
+        price_lkr=round(gross_usd * settings.usd_to_lkr, 0),
         platform_fee_usd=platform_fee,
         farmer_payout_usd=net_usd,
         farmer_payout_lkr=net_lkr,
@@ -123,5 +125,16 @@ async def buy_credit(
         net_usd=net_usd,
         net_lkr=net_lkr,
         tx_hash=retire_tx,
-        block_explorer_url=f"{settings.polygon_block_explorer_url}/{retire_tx}",
+        block_explorer_url=f"{settings.block_explorer_base_url}/{retire_tx}",
     )
+
+
+@router.get("/transactions")
+async def list_transactions(
+    session: AsyncSession = Depends(get_session),
+) -> list[dict]:
+    """List all marketplace transactions, most recent first."""
+    result = await session.exec(
+        select(Transaction).order_by(Transaction.created_at.desc())
+    )
+    return [t.model_dump() for t in result.all()]

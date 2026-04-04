@@ -1,30 +1,76 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { api } from "../services/api";
-import type { CreditListing, CreditTokenRecord, FarmRecord, PoolBundle } from "../types";
+import type { CreditListing, CreditTokenRecord, FarmRecord, PoolBundle, KGMLStatus, BlockchainHealth } from "../types";
 import { CROP_LABELS, formatLKR, formatTonnes, formatUSD } from "../utils/formatters";
+
+function StatusDot({ color }: { color: "green" | "red" | "yellow" }) {
+  const cls =
+    color === "green"
+      ? "bg-green-400 shadow-green-400/50"
+      : color === "yellow"
+        ? "bg-yellow-400 shadow-yellow-400/50"
+        : "bg-red-400 shadow-red-400/50";
+  return <span className={`inline-block w-2.5 h-2.5 rounded-full shadow-sm ${cls}`} />;
+}
 
 export default function Dashboard() {
   const [farms, setFarms] = useState<FarmRecord[]>([]);
   const [pool, setPool] = useState<PoolBundle | null>(null);
   const [listings, setListings] = useState<CreditListing[]>([]);
   const [retired, setRetired] = useState<CreditTokenRecord[]>([]);
+  const [kgmlStatus, setKgmlStatus] = useState<KGMLStatus | null>(null);
+  const [blockchainHealth, setBlockchainHealth] = useState<BlockchainHealth | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchAll = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setFetchError(null);
+
+    try {
+      const [farmRows, poolRow, listingRows, retiredRows] = await Promise.all([
+        api.listFarms(),
+        api.getPool(),
+        api.getListings(),
+        api.listCredits(true),
+      ]);
+      setFarms(farmRows);
+      setPool(poolRow);
+      setListings(listingRows);
+      setRetired(retiredRows);
+    } catch {
+      setFarms([]);
+      setPool(null);
+      setListings([]);
+      setRetired([]);
+      setFetchError("Failed to load dashboard data. Make sure the API is running.");
+    }
+
+    try {
+      const status = await api.getKGMLStatus();
+      setKgmlStatus(status);
+    } catch {
+      setKgmlStatus(null);
+    }
+
+    try {
+      const health = await api.getBlockchainHealth();
+      setBlockchainHealth(health);
+    } catch {
+      setBlockchainHealth(null);
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
   useEffect(() => {
-    Promise.all([api.listFarms(), api.getPool(), api.getListings(), api.listCredits(true)])
-      .then(([farmRows, poolRow, listingRows, retiredRows]) => {
-        setFarms(farmRows);
-        setPool(poolRow);
-        setListings(listingRows);
-        setRetired(retiredRows);
-      })
-      .catch(() => {
-        setFarms([]);
-        setPool(null);
-        setListings([]);
-        setRetired([]);
-      });
-  }, []);
+    fetchAll();
+  }, [fetchAll]);
 
   const pooledFarms = useMemo(() => farms.filter((f) => f.in_pool).length, [farms]);
   const listedValue = useMemo(() => listings.reduce((sum, l) => sum + l.price_usd, 0), [listings]);
@@ -61,13 +107,124 @@ export default function Dashboard() {
       .slice(0, 6);
   }, [farms]);
 
+  const truncateAddress = (addr: string | undefined | null) => {
+    if (!addr) return null;
+    if (addr.length <= 14) return addr;
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col items-center justify-center gap-4 min-h-[50vh]">
+        <span className="w-8 h-8 border-4 border-carbon-700/30 border-t-carbon-400 rounded-full animate-spin" />
+        <p className="text-gray-400 text-sm">Loading dashboard data...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold text-white">ESG Dashboard</h1>
-        <p className="text-gray-400 text-sm mt-1">Live performance view sourced from current platform database records.</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white">ESG Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">Live performance view sourced from current platform database records.</p>
+        </div>
+        <button
+          onClick={() => fetchAll(true)}
+          disabled={refreshing}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 text-sm transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
+      {fetchError && (
+        <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-4 text-red-300 text-sm">
+          {fetchError}
+        </div>
+      )}
+
+      {/* ── MRV Pipeline Health ──────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold text-white">MRV Pipeline Health</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* KGML Model */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">KGML Model</div>
+            <div className="flex items-center gap-2">
+              {kgmlStatus ? (
+                <>
+                  <StatusDot color={kgmlStatus.kgml_model_loaded ? "green" : "red"} />
+                  <span className={`text-sm font-semibold ${kgmlStatus.kgml_model_loaded ? "text-green-400" : "text-red-400"}`}>
+                    {kgmlStatus.kgml_model_loaded ? "Loaded" : "Not Loaded"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* GEE Connection */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">GEE Connection</div>
+            <div className="flex items-center gap-2">
+              {kgmlStatus ? (
+                <>
+                  <StatusDot color={kgmlStatus.gee_connected ? "green" : "red"} />
+                  <span className={`text-sm font-semibold ${kgmlStatus.gee_connected ? "text-green-400" : "text-red-400"}`}>
+                    {kgmlStatus.gee_connected ? "Connected" : "Disconnected"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* Blockchain */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">Blockchain</div>
+            <div className="flex items-center gap-2">
+              {blockchainHealth ? (
+                <>
+                  <StatusDot color={blockchainHealth.enabled && blockchainHealth.connected ? "green" : "yellow"} />
+                  <span
+                    className={`text-sm font-semibold ${
+                      blockchainHealth.enabled && blockchainHealth.connected ? "text-green-400" : "text-yellow-400"
+                    }`}
+                  >
+                    {blockchainHealth.enabled && blockchainHealth.connected ? "Enabled" : "Configuring"}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+
+          {/* Smart Contract */}
+          <div className="rounded-xl border border-white/10 bg-forest-light p-4 space-y-2">
+            <div className="text-xs text-gray-400">Smart Contract</div>
+            <div className="flex items-center gap-2">
+              {blockchainHealth ? (
+                blockchainHealth.contract_address ? (
+                  <span className="text-sm font-mono font-semibold text-carbon-400" title={blockchainHealth.contract_address}>
+                    {truncateAddress(blockchainHealth.contract_address)}
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold text-gray-500">Not Deployed</span>
+                )
+              ) : (
+                <span className="text-sm text-gray-500">Loading...</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Existing KPI Cards ───────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-xl border border-white/10 bg-forest-light p-4">
           <div className="text-xs text-gray-400">Registered farms</div>
@@ -107,7 +264,7 @@ export default function Dashboard() {
 
       <div className="rounded-xl border border-yellow-600/40 bg-yellow-900/10 p-5">
         <div className="flex items-start gap-3">
-          <span className="text-2xl">⚠️</span>
+          <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
           <div>
             <div className="text-yellow-300 font-bold">CBAM Readiness Monitor</div>
             <p className="text-gray-300 text-sm mt-1">

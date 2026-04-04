@@ -58,10 +58,15 @@ export function CreditCard({ credit, onBuy, buying }: Props) {
       </div>
 
       {/* Token info */}
-      <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-white/5 pt-2">
+      <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-white/5 pt-2 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-emerald-900/30 text-emerald-400">Token #{credit.token_id}</span>
         <span className="px-1.5 py-0.5 rounded bg-purple-900/30 text-purple-400">ERC-1155</span>
         <span className="px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400">Polygon</span>
+        {credit.on_chain ? (
+          <span className="px-1.5 py-0.5 rounded bg-green-900/30 text-green-400">On-Chain</span>
+        ) : (
+          <span className="px-1.5 py-0.5 rounded bg-gray-800/50 text-gray-400">Off-chain</span>
+        )}
         <a
           href={credit.block_explorer_url}
           target="_blank"

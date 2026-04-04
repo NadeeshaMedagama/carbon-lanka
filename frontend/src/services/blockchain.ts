@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS ?? "";
-const CHAIN_ID = parseInt(import.meta.env.VITE_CHAIN_ID ?? "80001");
+const CHAIN_ID = parseInt(import.meta.env.VITE_CHAIN_ID ?? "80002");
 
-// Minimal ABI — only the functions used in the frontend
+// Minimal ABI -- only the functions used in the frontend
 const ABI = [
   "function mint(address farmer, uint256 tonnes, string farmId, string vintage, bytes32 satHash) external returns (uint256)",
   "function retire(uint256 tokenId, uint256 amount) external",
@@ -15,8 +15,11 @@ const ABI = [
   "event CreditRetired(uint256 indexed tokenId, address indexed retiredBy, uint256 tonnes, string farmId, uint256 timestamp)",
 ];
 
+export { CHAIN_ID };
+
 export async function getProvider(): Promise<ethers.BrowserProvider> {
-  if (!window.ethereum) throw new Error("MetaMask not found. Please install MetaMask.");
+  if (!window.ethereum)
+    throw new Error("MetaMask not found. Please install MetaMask.");
   return new ethers.BrowserProvider(window.ethereum);
 }
 
@@ -31,43 +34,67 @@ export async function connectWallet(): Promise<string> {
   return accounts[0];
 }
 
-export async function switchToMumbai(): Promise<void> {
+/** Switch to Polygon Amoy Testnet (chain ID 80002) */
+export async function switchToAmoy(): Promise<void> {
   if (!window.ethereum) throw new Error("MetaMask not found.");
+  const chainIdHex = "0x" + CHAIN_ID.toString(16);
+
+  // Check current chain first — skip the switch request if already on Amoy
+  try {
+    const currentChain = await window.ethereum.request({ method: "eth_chainId" }) as string;
+    if (currentChain.toLowerCase() === chainIdHex.toLowerCase()) return;
+  } catch {
+    // ignore — proceed with switch attempt
+  }
+
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: "0x13881" }], // 80001
+      params: [{ chainId: chainIdHex }],
     });
   } catch (err: unknown) {
-    // Chain not added — add it
-    if ((err as { code: number }).code === 4902) {
+    const code = (err as { code: number }).code;
+    if (code === 4902) {
+      // Chain not added yet — add it
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
-        params: [{
-          chainId: "0x13881",
-          chainName: "Polygon Mumbai Testnet",
-          nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-          rpcUrls: ["https://rpc-mumbai.maticvigil.com"],
-          blockExplorerUrls: ["https://mumbai.polygonscan.com"],
-        }],
+        params: [
+          {
+            chainId: chainIdHex,
+            chainName: "Polygon Amoy Testnet",
+            nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+            rpcUrls: ["https://rpc-amoy.polygon.technology"],
+            blockExplorerUrls: ["https://amoy.polygonscan.com"],
+          },
+        ],
       });
+    } else if (code === -32002) {
+      // Already a pending request — re-throw so the hook can show the right message
+      throw err;
     }
+    // code 4001 = user rejected switch, proceed anyway (wallet may already be connected)
   }
 }
 
-export function getContract(signerOrProvider: ethers.Signer | ethers.Provider) {
-  if (!CONTRACT_ADDRESS) throw new Error("Contract address not configured in .env");
+export function getContract(
+  signerOrProvider: ethers.Signer | ethers.Provider
+) {
+  if (!CONTRACT_ADDRESS)
+    throw new Error("Contract address not configured in .env");
   return new ethers.Contract(CONTRACT_ADDRESS, ABI, signerOrProvider);
 }
 
-export async function retireCredit(tokenId: number, amount: number): Promise<ethers.TransactionReceipt | null> {
+export async function retireCredit(
+  tokenId: number,
+  amount: number
+): Promise<ethers.TransactionReceipt | null> {
   const signer = await getSigner();
   const contract = getContract(signer);
   const tx = await contract.retire(tokenId, amount);
   return tx.wait();
 }
 
-export async function getCreditOnChain(tokenId: number) {
+export async function getCreditOnChainDirect(tokenId: number) {
   const provider = await getProvider();
   const contract = getContract(provider);
   return contract.getCredit(tokenId);
@@ -77,9 +104,15 @@ export async function getCreditOnChain(tokenId: number) {
 declare global {
   interface Window {
     ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      request: (args: {
+        method: string;
+        params?: unknown[];
+      }) => Promise<unknown>;
       on: (event: string, handler: (...args: unknown[]) => void) => void;
-      removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
+      removeListener: (
+        event: string,
+        handler: (...args: unknown[]) => void
+      ) => void;
     };
   }
 }

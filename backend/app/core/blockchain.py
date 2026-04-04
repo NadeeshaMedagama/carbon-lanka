@@ -133,9 +133,9 @@ class BlockchainService:
             {
                 "from": self.account.address,
                 "nonce": nonce,
-                "gas": 350_000,
-                "maxFeePerGas": self.w3.to_wei("35", "gwei"),
-                "maxPriorityFeePerGas": self.w3.to_wei("30", "gwei"),
+                "gas": 400_000,
+                "maxFeePerGas": self.w3.to_wei("5", "gwei"),
+                "maxPriorityFeePerGas": self.w3.to_wei("2", "gwei"),
             }
         )
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { connectWallet, switchToMumbai } from "../services/blockchain";
+import { connectWallet, switchToAmoy } from "../services/blockchain";
 
 export function useWeb3() {
   const [account, setAccount] = useState<string | null>(null);
@@ -23,27 +23,37 @@ export function useWeb3() {
     };
 
     window.ethereum.on("accountsChanged", handleAccountChange);
-    return () => window.ethereum?.removeListener("accountsChanged", handleAccountChange);
+    return () =>
+      window.ethereum?.removeListener("accountsChanged", handleAccountChange);
   }, []);
 
   const connect = useCallback(async () => {
+    if (connecting) return; // already in progress — don't stack requests
     setConnecting(true);
     setError(null);
     try {
-      await switchToMumbai();
+      await switchToAmoy();
       const addr = await connectWallet();
       setAccount(addr);
     } catch (err: unknown) {
-      setError((err as Error).message ?? "Connection failed");
+      const code = (err as { code?: number }).code;
+      if (code === -32002) {
+        // MetaMask popup is already open — just tell the user
+        setError("MetaMask is already asking for permission. Please open MetaMask and approve the request.");
+      } else if (code === 4001) {
+        setError("Connection rejected. Please approve in MetaMask.");
+      } else {
+        setError((err as Error).message ?? "Connection failed");
+      }
     } finally {
       setConnecting(false);
     }
-  }, []);
+  }, [connecting]);
 
   const disconnect = () => setAccount(null);
 
   const shortAccount = account
-    ? `${account.slice(0, 6)}…${account.slice(-4)}`
+    ? `${account.slice(0, 6)}...${account.slice(-4)}`
     : null;
 
   return { account, shortAccount, connecting, error, connect, disconnect };

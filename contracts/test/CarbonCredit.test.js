@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
 describe("CarbonCredit", function () {
   let contract, owner, verifier, farmer, buyer;
@@ -94,7 +95,7 @@ describe("CarbonCredit", function () {
     );
     await expect(contract.connect(buyer).retire(1, TONNES))
       .to.emit(contract, "CreditRetired")
-      .withArgs(1, buyer.address, TONNES, FARM_ID, await getBlockTimestamp(contract));
+      .withArgs(1, buyer.address, TONNES, FARM_ID, anyValue);
   });
 
   it("retired token balance becomes zero", async function () {

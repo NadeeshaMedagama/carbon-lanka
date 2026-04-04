@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,10 +7,8 @@
 @layer base {
   body {
     @apply text-white;
-    background: radial-gradient(1200px 500px at 20% -10%, rgba(22, 163, 74, 0.14), transparent 60%),
-      radial-gradient(1000px 400px at 80% -20%, rgba(20, 83, 45, 0.25), transparent 60%),
-      #0d1f14;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #020617;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -19,6 +19,19 @@
 
   a {
     @apply transition-colors;
+  }
+
+  /* Subtle top-of-page accent glow */
+  #root::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #10b981 30%, #34d399 50%, #10b981 70%, transparent);
+    opacity: 0.6;
+    z-index: 100;
   }
 }
 

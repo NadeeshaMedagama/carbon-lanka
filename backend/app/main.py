@@ -1,13 +1,14 @@
 import logging
+import os
 import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.db.database import init_db
-from app.api.routes import mrv, farms, credits, marketplace
-from app.config import settings
+from app.api.routes import mrv, farms, credits, marketplace, admin
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -48,6 +49,28 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         log.warning("KGML : load failed (%s) — endpoint disabled", exc)
 
+    # Initialize blockchain service
+    if settings.use_real_blockchain:
+        try:
+            from app.core.blockchain import init_blockchain_service
+            svc = init_blockchain_service(
+                rpc_url=settings.polygon_amoy_rpc,
+                private_key=settings.deployer_private_key,
+                contract_address=settings.carbon_credit_contract_address,
+            )
+            health = await svc.check_connection()
+            log.info(
+                "Chain: connected  chain_id=%s  verifier=%s  balance=%.4f POL  contract=%s",
+                health.get("chain_id"),
+                health.get("verifier_address"),
+                health.get("verifier_balance_pol", 0),
+                settings.carbon_credit_contract_address,
+            )
+        except Exception as exc:
+            log.warning("Chain: init failed (%s) — minting will use simulation", exc)
+    else:
+        log.info("Chain: blockchain not configured (set DEPLOYER_PRIVATE_KEY + CARBON_CREDIT_CONTRACT_ADDRESS)")
+
     yield
     log.info("=== CarbonLanka API shutting down ===")
 
@@ -74,6 +97,30 @@ app.include_router(mrv.router)
 app.include_router(farms.router)
 app.include_router(credits.router)
 app.include_router(marketplace.router)
+app.include_router(admin.router)
+
+# Serve uploaded proof documents via a normal route (inherits CORS from the app)
+_uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+os.makedirs(_uploads_dir, exist_ok=True)
+
+
+@app.get("/uploads/{filename}")
+async def serve_upload(filename: str):
+    """Serve uploaded proof documents with proper CORS headers."""
+    from fastapi.responses import FileResponse
+    filepath = os.path.join(_uploads_dir, filename)
+    if not os.path.isfile(filepath):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
+    media_types = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    ext = os.path.splitext(filename)[1].lower()
+    return FileResponse(filepath, media_type=media_types.get(ext, "application/octet-stream"))
 
 
 @app.middleware("http")

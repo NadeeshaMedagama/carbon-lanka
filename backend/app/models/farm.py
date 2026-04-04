@@ -17,6 +17,10 @@ class FarmInput(SQLModel):
     district: Optional[str] = Field(default="Nuwara Eliya")
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    # MRV pipeline result fields — client passes these from KGML analysis
+    claim_status: Optional[str] = Field(default=None)
+    claim_status_reason: Optional[str] = Field(default=None)
+    anomaly_flag: Optional[bool] = Field(default=None)
 
 
 class Farm(SQLModel, table=True):
@@ -37,6 +41,13 @@ class Farm(SQLModel, table=True):
     estimated_tonnes_co2: Optional[float] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     in_pool: bool = False
+    # MRV verification status
+    claim_status: str = Field(default="UNVERIFIED")
+    claim_status_reason: Optional[str] = None
+    anomaly_flag: bool = False
+    # Land ownership proof & admin approval
+    land_proof_url: Optional[str] = None
+    admin_approved: bool = False
 
 
 class FarmResponse(SQLModel):
@@ -45,8 +56,15 @@ class FarmResponse(SQLModel):
     district: str
     land_area_ha: float
     crop_type: str
+    practice_change: str
+    years_since_change: int
     estimated_tonnes_co2: Optional[float]
     in_pool: bool
     latitude: Optional[float]
     longitude: Optional[float]
     created_at: datetime
+    claim_status: str = "UNVERIFIED"
+    claim_status_reason: Optional[str] = None
+    anomaly_flag: bool = False
+    land_proof_url: Optional[str] = None
+    admin_approved: bool = False

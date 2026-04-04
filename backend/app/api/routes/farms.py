@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List
@@ -6,6 +9,9 @@ from typing import List
 from app.db.database import get_session
 from app.models.farm import Farm, FarmInput, FarmResponse
 from app.core.mrv_engine import calculate_carbon
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter(prefix="/farms", tags=["Farms"])
 
@@ -35,6 +41,9 @@ async def register_farm(
         longitude=farm_input.longitude,
         estimated_tonnes_co2=mrv.tonnes_co2_net,
         in_pool=False,
+        claim_status=farm_input.claim_status or "UNVERIFIED",
+        claim_status_reason=farm_input.claim_status_reason,
+        anomaly_flag=farm_input.anomaly_flag or False,
     )
     session.add(farm)
     await session.commit()
@@ -64,6 +73,35 @@ async def get_farm(
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
     return FarmResponse(**farm.model_dump())
+
+
+@router.post("/{farm_id}/upload-proof")
+async def upload_land_proof(
+    farm_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Upload a land ownership proof document for a farm."""
+    farm = await session.get(Farm, farm_id)
+    if not farm:
+        raise HTTPException(status_code=404, detail="Farm not found")
+
+    ext = os.path.splitext(file.filename or "doc")[1] or ".pdf"
+    allowed = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+    if ext.lower() not in allowed:
+        raise HTTPException(status_code=422, detail=f"File type {ext} not allowed. Use: {', '.join(allowed)}")
+
+    filename = f"farm_{farm_id}_{uuid.uuid4().hex[:8]}{ext.lower()}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    contents = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    farm.land_proof_url = f"/uploads/{filename}"
+    session.add(farm)
+    await session.commit()
+
+    return {"success": True, "farm_id": farm_id, "land_proof_url": farm.land_proof_url}
 
 
 @router.post("/{farm_id}/join-pool", response_model=FarmResponse)

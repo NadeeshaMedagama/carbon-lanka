@@ -47,3 +47,4 @@ npm-debug.log*
 yarn-debug.log*
 .claude/settings.local.json
 chess-world-dcd2c-6d738b9ef898.json
+backend/uploads/*
