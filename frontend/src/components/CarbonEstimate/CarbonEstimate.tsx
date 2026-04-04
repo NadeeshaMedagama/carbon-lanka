@@ -327,33 +327,66 @@ export function CarbonEstimate({ result, onVerifySatellite, onAddToPool, verifyi
         )}
       </div>
 
-      {/* ---- Action Buttons ---- */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {!result.satellite_verified && (
+      {/* ---- Action Buttons / Blocked State ---- */}
+      {(result.claim_status === "REJECTED" || result.anomaly_flag) ? (
+        <div className="rounded-xl border-2 border-red-600/60 bg-red-950/40 p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="text-red-400 text-2xl leading-none mt-0.5">&#9888;</span>
+            <div>
+              <div className="text-red-300 font-bold text-base">Submission Flagged — Under Review</div>
+              <p className="text-gray-400 text-sm mt-1 leading-relaxed">
+                Our system has detected anomalies in your submission. It has been <span className="text-red-400 font-medium">flagged for manual review</span> by our verification team.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-3 text-xs text-gray-400 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              <span>No credits can be issued until manual verification is complete</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              <span>Our team will contact you with the review outcome</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              <span>You can view the review status in the admin portal</span>
+            </div>
+          </div>
+          {result.claim_status_reason && (
+            <div className="text-xs text-red-300/80 italic border-t border-red-700/20 pt-2">
+              Reason: {result.claim_status_reason}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row gap-3">
+          {!result.satellite_verified && (
+            <button
+              onClick={onVerifySatellite}
+              disabled={verifying}
+              className="flex-1 py-2.5 rounded-lg border border-blue-600 hover:bg-blue-900/30 disabled:opacity-50 text-blue-400 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              {verifying ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <span>&#128752;</span> Verify with Satellite
+                </>
+              )}
+            </button>
+          )}
           <button
-            onClick={onVerifySatellite}
-            disabled={verifying}
-            className="flex-1 py-2.5 rounded-lg border border-blue-600 hover:bg-blue-900/30 disabled:opacity-50 text-blue-400 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            onClick={onAddToPool}
+            className="flex-1 py-2.5 rounded-lg bg-carbon-600 hover:bg-carbon-500 text-white text-sm font-semibold transition-colors"
           >
-            {verifying ? (
-              <>
-                <span className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
-                Verifying...
-              </>
-            ) : (
-              <>
-                <span>&#128752;</span> Verify with Satellite
-              </>
-            )}
+            Submit for Admin Approval
           </button>
-        )}
-        <button
-          onClick={onAddToPool}
-          className="flex-1 py-2.5 rounded-lg bg-carbon-600 hover:bg-carbon-500 text-white text-sm font-semibold transition-colors"
-        >
-          Continue to Pool
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

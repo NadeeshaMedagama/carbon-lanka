@@ -10,6 +10,8 @@ import type {
   CreditTokenRecord,
   KGMLStatus,
   BlockchainHealth,
+  AdminStats,
+  AdminCreditRecord,
 } from "../types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -73,6 +75,18 @@ export const api = {
   joinPool: (farmId: number) =>
     client.post<FarmRecord>(`/farms/${farmId}/join-pool`).then((r) => r.data),
 
+  uploadLandProof: (farmId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return client
+      .post<{ success: boolean; farm_id: number; land_proof_url: string }>(
+        `/farms/${farmId}/upload-proof`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      )
+      .then((r) => r.data);
+  },
+
   // ── Credits ──────────────────────────────────────────────────────────
   getPool: () =>
     client.get<PoolBundle>("/credits/pool").then((r) => r.data),
@@ -106,6 +120,12 @@ export const api = {
       .get<BlockchainHealth>("/credits/blockchain/health")
       .then((r) => r.data),
 
+  /** Convenience alias: list only retired credits */
+  listRetiredCredits: () =>
+    client
+      .get<CreditTokenRecord[]>("/credits?retired=true")
+      .then((r) => r.data),
+
   // ── Marketplace ──────────────────────────────────────────────────────
   getListings: () =>
     client.get<CreditListing[]>("/marketplace").then((r) => r.data),
@@ -117,5 +137,65 @@ export const api = {
         buyer_address: buyerAddress,
         price_usd: priceUsd,
       })
+      .then((r) => r.data),
+
+  getTransactions: () =>
+    client.get<Record<string, unknown>[]>("/marketplace/transactions").then((r) => r.data),
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+  adminStats: (key: string) =>
+    client.get<AdminStats>("/admin/stats", { headers: { "x-admin-key": key } }).then((r) => r.data),
+
+  adminGetFlaggedFarms: (key: string) =>
+    client.get<FarmRecord[]>("/admin/farms/flagged", { headers: { "x-admin-key": key } }).then((r) => r.data),
+
+  adminGetAllFarms: (key: string) =>
+    client.get<FarmRecord[]>("/admin/farms", { headers: { "x-admin-key": key } }).then((r) => r.data),
+
+  adminApproveFarm: (key: string, farmId: number, note?: string) =>
+    client
+      .post<{ success: boolean; claim_status: string }>(
+        `/admin/farms/${farmId}/approve`,
+        { note: note ?? "Manually approved by admin" },
+        { headers: { "x-admin-key": key } },
+      )
+      .then((r) => r.data),
+
+  adminRejectFarm: (key: string, farmId: number, reason?: string) =>
+    client
+      .post<{ success: boolean; claim_status: string }>(
+        `/admin/farms/${farmId}/reject`,
+        { reason: reason ?? "Manually rejected by admin" },
+        { headers: { "x-admin-key": key } },
+      )
+      .then((r) => r.data),
+
+  adminFlagFarm: (key: string, farmId: number, reason?: string) =>
+    client
+      .post<{ success: boolean }>(
+        `/admin/farms/${farmId}/flag`,
+        { reason: reason ?? "Manually flagged for review" },
+        { headers: { "x-admin-key": key } },
+      )
+      .then((r) => r.data),
+
+  adminDeleteFarm: (key: string, farmId: number) =>
+    client
+      .delete<{ success: boolean; deleted_tokens: number }>(
+        `/admin/farms/${farmId}`,
+        { headers: { "x-admin-key": key } },
+      )
+      .then((r) => r.data),
+
+  adminGetAllCredits: (key: string) =>
+    client.get<AdminCreditRecord[]>("/admin/credits", { headers: { "x-admin-key": key } }).then((r) => r.data),
+
+  adminRetireCredit: (key: string, tokenId: number, reason?: string) =>
+    client
+      .post<{ success: boolean }>(
+        `/admin/credits/${tokenId}/retire`,
+        { reason: reason ?? "Administratively retired" },
+        { headers: { "x-admin-key": key } },
+      )
       .then((r) => r.data),
 };

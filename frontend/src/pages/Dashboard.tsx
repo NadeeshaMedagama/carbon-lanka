@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { api } from "../services/api";
 import type { CreditListing, CreditTokenRecord, FarmRecord, PoolBundle, KGMLStatus, BlockchainHealth } from "../types";
@@ -21,26 +22,55 @@ export default function Dashboard() {
   const [retired, setRetired] = useState<CreditTokenRecord[]>([]);
   const [kgmlStatus, setKgmlStatus] = useState<KGMLStatus | null>(null);
   const [blockchainHealth, setBlockchainHealth] = useState<BlockchainHealth | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchAll = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setFetchError(null);
+
+    try {
+      const [farmRows, poolRow, listingRows, retiredRows] = await Promise.all([
+        api.listFarms(),
+        api.getPool(),
+        api.getListings(),
+        api.listCredits(true),
+      ]);
+      setFarms(farmRows);
+      setPool(poolRow);
+      setListings(listingRows);
+      setRetired(retiredRows);
+    } catch {
+      setFarms([]);
+      setPool(null);
+      setListings([]);
+      setRetired([]);
+      setFetchError("Failed to load dashboard data. Make sure the API is running.");
+    }
+
+    try {
+      const status = await api.getKGMLStatus();
+      setKgmlStatus(status);
+    } catch {
+      setKgmlStatus(null);
+    }
+
+    try {
+      const health = await api.getBlockchainHealth();
+      setBlockchainHealth(health);
+    } catch {
+      setBlockchainHealth(null);
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
   useEffect(() => {
-    Promise.all([api.listFarms(), api.getPool(), api.getListings(), api.listCredits(true)])
-      .then(([farmRows, poolRow, listingRows, retiredRows]) => {
-        setFarms(farmRows);
-        setPool(poolRow);
-        setListings(listingRows);
-        setRetired(retiredRows);
-      })
-      .catch(() => {
-        setFarms([]);
-        setPool(null);
-        setListings([]);
-        setRetired([]);
-      });
-
-    // Fetch MRV pipeline health
-    api.getKGMLStatus().then(setKgmlStatus).catch(() => setKgmlStatus(null));
-    api.getBlockchainHealth().then(setBlockchainHealth).catch(() => setBlockchainHealth(null));
-  }, []);
+    fetchAll();
+  }, [fetchAll]);
 
   const pooledFarms = useMemo(() => farms.filter((f) => f.in_pool).length, [farms]);
   const listedValue = useMemo(() => listings.reduce((sum, l) => sum + l.price_usd, 0), [listings]);
@@ -83,12 +113,37 @@ export default function Dashboard() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col items-center justify-center gap-4 min-h-[50vh]">
+        <span className="w-8 h-8 border-4 border-carbon-700/30 border-t-carbon-400 rounded-full animate-spin" />
+        <p className="text-gray-400 text-sm">Loading dashboard data...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold text-white">ESG Dashboard</h1>
-        <p className="text-gray-400 text-sm mt-1">Live performance view sourced from current platform database records.</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white">ESG Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">Live performance view sourced from current platform database records.</p>
+        </div>
+        <button
+          onClick={() => fetchAll(true)}
+          disabled={refreshing}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 text-sm transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
+
+      {fetchError && (
+        <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-4 text-red-300 text-sm">
+          {fetchError}
+        </div>
+      )}
 
       {/* ── MRV Pipeline Health ──────────────────────────────────────────── */}
       <div className="space-y-3">
@@ -140,7 +195,7 @@ export default function Dashboard() {
                       blockchainHealth.enabled && blockchainHealth.connected ? "text-green-400" : "text-yellow-400"
                     }`}
                   >
-                    {blockchainHealth.enabled && blockchainHealth.connected ? "Enabled" : "Demo Mode"}
+                    {blockchainHealth.enabled && blockchainHealth.connected ? "Enabled" : "Configuring"}
                   </span>
                 </>
               ) : (
@@ -209,7 +264,7 @@ export default function Dashboard() {
 
       <div className="rounded-xl border border-yellow-600/40 bg-yellow-900/10 p-5">
         <div className="flex items-start gap-3">
-          <span className="text-2xl">⚠️</span>
+          <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
           <div>
             <div className="text-yellow-300 font-bold">CBAM Readiness Monitor</div>
             <p className="text-gray-300 text-sm mt-1">

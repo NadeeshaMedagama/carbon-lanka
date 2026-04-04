@@ -19,3 +19,4 @@ earthengine-api>=0.1.414
 pytest>=8.3.3
 pytest-asyncio>=0.24.0
 anyio[trio]>=4.6.2
+python-multipart

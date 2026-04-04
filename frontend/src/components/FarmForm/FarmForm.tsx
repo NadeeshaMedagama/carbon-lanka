@@ -1,10 +1,38 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { MapPin, Navigation, FileUp, FileCheck } from "lucide-react";
 import type { FarmInput } from "../../types";
 import { CROP_LABELS, PRACTICE_LABELS } from "../../utils/formatters";
 import { api } from "../../services/api";
 
+// Fix Leaflet's broken default icon paths when bundled with Vite
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+// Custom emerald pin icon
+const PIN_ICON = L.divIcon({
+  className: "",
+  html: `<div style="
+    width:28px;height:28px;
+    background:#10b981;
+    border:3px solid #fff;
+    border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    box-shadow:0 2px 8px rgba(0,0,0,0.5);
+  "></div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+  popupAnchor: [0, -30],
+});
+
 interface Props {
-  onCalculate: (farm: FarmInput) => void;
+  onCalculate: (farm: FarmInput, proofFile?: File) => void;
   loading: boolean;
 }
 
@@ -20,35 +48,77 @@ const PRACTICE_BY_CROP: Record<string, string[]> = {
 };
 
 const SRI_LANKA_DISTRICTS = [
-  "Ampara",
-  "Anuradhapura",
-  "Badulla",
-  "Batticaloa",
-  "Colombo",
-  "Galle",
-  "Gampaha",
-  "Hambantota",
-  "Jaffna",
-  "Kalutara",
-  "Kandy",
-  "Kegalle",
-  "Kilinochchi",
-  "Kurunegala",
-  "Mannar",
-  "Matale",
-  "Matara",
-  "Monaragala",
-  "Mullaitivu",
-  "Nuwara Eliya",
-  "Polonnaruwa",
-  "Puttalam",
-  "Ratnapura",
-  "Trincomalee",
-  "Vavuniya",
+  "Ampara","Anuradhapura","Badulla","Batticaloa","Colombo","Galle","Gampaha",
+  "Hambantota","Jaffna","Kalutara","Kandy","Kegalle","Kilinochchi","Kurunegala",
+  "Mannar","Matale","Matara","Monaragala","Mullaitivu","Nuwara Eliya",
+  "Polonnaruwa","Puttalam","Ratnapura","Trincomalee","Vavuniya",
 ];
+
+// Sri Lanka bounds for clamping
+const SL_BOUNDS = { minLat: 5.9, maxLat: 9.9, minLng: 79.5, maxLng: 81.9 };
+
+/** Invisible component that captures map clicks */
+function MapClickHandler({
+  onPick,
+}: {
+  onPick: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onPick(
+        parseFloat(e.latlng.lat.toFixed(4)),
+        parseFloat(e.latlng.lng.toFixed(4)),
+      );
+    },
+  });
+  return null;
+}
+
+/** Marker that keeps the map view synced when lat/lng change via the inputs */
+function SyncedMarker({
+  lat,
+  lng,
+  onDrag,
+}: {
+  lat: number;
+  lng: number;
+  onDrag: (lat: number, lng: number) => void;
+}) {
+  const markerRef = useRef<L.Marker>(null);
+
+  // Pan map to new position when coordinates change from the inputs
+  const map = useMapEvents({});
+  useEffect(() => {
+    if (markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      map.panTo([lat, lng], { animate: true, duration: 0.4 });
+    }
+  }, [lat, lng, map]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[lat, lng]}
+      icon={PIN_ICON}
+      draggable
+      eventHandlers={{
+        dragend(e) {
+          const m = e.target as L.Marker;
+          const pos = m.getLatLng();
+          onDrag(
+            parseFloat(pos.lat.toFixed(4)),
+            parseFloat(pos.lng.toFixed(4)),
+          );
+        },
+      }}
+    />
+  );
+}
 
 export function FarmForm({ onCalculate, loading }: Props) {
   const [cropOptions, setCropOptions] = useState<{ key: string; label: string }[]>([]);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [form, setForm] = useState<FarmInput>({
     land_area_ha: 2.02,
     crop_type: "tea_organic",
@@ -70,19 +140,13 @@ export function FarmForm({ onCalculate, loading }: Props) {
           .map((row) => ({ key: row.key, label: row.label || row.key }))
           .sort((a, b) => a.label.localeCompare(b.label));
         setCropOptions(options);
-
-        // Keep form crop valid if backend list differs from static defaults.
         if (options.length > 0 && !options.some((o) => o.key === form.crop_type)) {
           const nextCrop = options[0].key;
           const practices = PRACTICE_BY_CROP[nextCrop] ?? ["conventional_management"];
           setForm((prev) => ({ ...prev, crop_type: nextCrop, practice_change: practices[0] }));
         }
       })
-      .catch(() => {
-        // Keep fallback static list when API is unavailable.
-        setCropOptions([]);
-      });
-    // Run once on mount.
+      .catch(() => setCropOptions([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -99,13 +163,28 @@ export function FarmForm({ onCalculate, loading }: Props) {
     setForm((prev) => ({ ...prev, crop_type: crop, practice_change: practices[0] }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onCalculate(form);
+  const handlePick = (lat: number, lng: number) => {
+    setForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
   };
 
-  // Convert acres to ha helper shown in UI
+  const handleLatInput = (v: number) => {
+    const clamped = Math.min(SL_BOUNDS.maxLat, Math.max(SL_BOUNDS.minLat, v));
+    setForm((prev) => ({ ...prev, latitude: clamped }));
+  };
+
+  const handleLngInput = (v: number) => {
+    const clamped = Math.min(SL_BOUNDS.maxLng, Math.max(SL_BOUNDS.minLng, v));
+    setForm((prev) => ({ ...prev, longitude: clamped }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onCalculate(form, proofFile ?? undefined);
+  };
+
   const acresEquiv = (form.land_area_ha / 0.404686).toFixed(1);
+  const lat = form.latitude ?? 6.9271;
+  const lng = form.longitude ?? 80.7718;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -135,42 +214,86 @@ export function FarmForm({ onCalculate, loading }: Props) {
             ))}
           </select>
         </div>
+      </div>
 
-        {/* Latitude */}
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Latitude</label>
-          <input
-            type="number"
-            min={5.5}
-            max={10.0}
-            step={0.0001}
-            value={form.latitude ?? 6.9271}
-            onChange={(e) => set("latitude", parseFloat(e.target.value))}
-            placeholder="6.9271"
-            className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-carbon-500"
-          />
+      {/* ── Location picker ──────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-gray-400 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-carbon-400" />
+            Farm Location
+          </label>
+          <button
+            type="button"
+            onClick={() => setMapOpen((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-carbon-700/50 bg-carbon-900/20 text-carbon-400 hover:bg-carbon-900/40 transition-colors"
+          >
+            <Navigation className="w-3 h-3" />
+            {mapOpen ? "Close map" : "Pick on map"}
+          </button>
         </div>
 
-        {/* Longitude */}
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Longitude</label>
-          <input
-            type="number"
-            min={79.0}
-            max={82.0}
-            step={0.0001}
-            value={form.longitude ?? 80.7718}
-            onChange={(e) => set("longitude", parseFloat(e.target.value))}
-            placeholder="80.7718"
-            className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-carbon-500"
-          />
+        {/* Lat / Lng number inputs — always visible */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Latitude</label>
+            <input
+              type="number"
+              min={SL_BOUNDS.minLat}
+              max={SL_BOUNDS.maxLat}
+              step={0.0001}
+              value={lat}
+              onChange={(e) => handleLatInput(parseFloat(e.target.value))}
+              className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-carbon-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Longitude</label>
+            <input
+              type="number"
+              min={SL_BOUNDS.minLng}
+              max={SL_BOUNDS.maxLng}
+              step={0.0001}
+              value={lng}
+              onChange={(e) => handleLngInput(parseFloat(e.target.value))}
+              className="w-full px-3 py-2 rounded-lg bg-forest-light border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-carbon-500"
+            />
+          </div>
         </div>
 
+        {/* Interactive map — shown when open */}
+        {mapOpen && (
+          <div className="rounded-xl overflow-hidden border border-white/10 shadow-lg" style={{ height: 320 }}>
+            <MapContainer
+              center={[lat, lng]}
+              zoom={9}
+              style={{ width: "100%", height: "100%" }}
+              scrollWheelZoom
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              />
+              <MapClickHandler onPick={handlePick} />
+              <SyncedMarker lat={lat} lng={lng} onDrag={handlePick} />
+            </MapContainer>
+
+            {/* Map hint bar */}
+            <div className="px-3 py-1.5 bg-forest-mid border-t border-white/5 text-xs text-gray-500 flex items-center gap-1.5">
+              <MapPin className="w-3 h-3 text-carbon-500" />
+              Click anywhere on the map or drag the pin to set your farm location
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Rest of the form ──────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Land area */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">
             Land Area (hectares)
-            <span className="ml-1 text-gray-500 text-xs">{"\u2248"} {acresEquiv} acres</span>
+            <span className="ml-1 text-gray-500 text-xs">≈ {acresEquiv} acres</span>
           </label>
           <input
             type="number"
@@ -240,29 +363,54 @@ export function FarmForm({ onCalculate, loading }: Props) {
         )}
       </div>
 
-      {/* Demo preset button */}
-      <button
-        type="button"
-        onClick={() => setForm({
-          land_area_ha: 5 * 0.404686,
-          crop_type: "tea_organic",
-          practice_change: "organic_conversion",
-          years_since_change: 3,
-          farmer_name: "Demo Farmer",
-          district: "Nuwara Eliya",
-          latitude: 6.9497,
-          longitude: 80.7891,
-          fertiliser_kg_ha_yr: 0,
-          fuel_litres_yr: 0,
-        })}
-        className="text-xs text-carbon-500 hover:text-carbon-400 underline underline-offset-2"
-      >
-        Load demo: 5-acre tea farm (Nuwara Eliya)
-      </button>
+      {/* Land ownership proof */}
+      <div>
+        <label className="block text-sm text-gray-400 mb-1">
+          Land Ownership Proof <span className="text-red-400">*</span>
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Upload deed, title certificate, or government land permit (PDF, JPG, PNG).
+          Required for admin verification before credits can be issued.
+        </p>
+        <label
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
+            proofFile
+              ? "border-carbon-600/50 bg-carbon-900/20"
+              : "border-white/10 bg-forest-light hover:border-carbon-700/40"
+          }`}
+        >
+          {proofFile ? (
+            <FileCheck className="w-5 h-5 text-carbon-400 shrink-0" />
+          ) : (
+            <FileUp className="w-5 h-5 text-gray-500 shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            {proofFile ? (
+              <div className="text-sm text-carbon-300 font-medium truncate">{proofFile.name}</div>
+            ) : (
+              <div className="text-sm text-gray-500">Click to select file</div>
+            )}
+            <div className="text-xs text-gray-600">
+              {proofFile
+                ? `${(proofFile.size / 1024).toFixed(0)} KB`
+                : "PDF, JPG, PNG — Max 10 MB"}
+            </div>
+          </div>
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f && f.size <= 10 * 1024 * 1024) setProofFile(f);
+            }}
+          />
+        </label>
+      </div>
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !proofFile}
         className="w-full py-3 rounded-xl bg-carbon-600 hover:bg-carbon-500 disabled:opacity-50 text-white font-semibold text-lg transition-colors flex items-center justify-center gap-2"
       >
         {loading ? (

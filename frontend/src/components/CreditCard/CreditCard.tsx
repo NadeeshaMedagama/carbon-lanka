@@ -65,7 +65,7 @@ export function CreditCard({ credit, onBuy, buying }: Props) {
         {credit.on_chain ? (
           <span className="px-1.5 py-0.5 rounded bg-green-900/30 text-green-400">On-Chain</span>
         ) : (
-          <span className="px-1.5 py-0.5 rounded bg-gray-800/50 text-gray-400">Simulated</span>
+          <span className="px-1.5 py-0.5 rounded bg-gray-800/50 text-gray-400">Off-chain</span>
         )}
         <a
           href={credit.block_explorer_url}

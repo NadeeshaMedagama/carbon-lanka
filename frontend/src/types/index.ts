@@ -10,6 +10,10 @@ export interface FarmInput {
   district?: string;
   latitude?: number;
   longitude?: number;
+  // Passed by the client from KGML analysis result when registering
+  claim_status?: string;
+  claim_status_reason?: string | null;
+  anomaly_flag?: boolean;
 }
 
 export interface MRVResult {
@@ -54,11 +58,41 @@ export interface FarmRecord {
   district: string;
   land_area_ha: number;
   crop_type: string;
+  practice_change: string;
+  years_since_change: number;
   estimated_tonnes_co2?: number;
   in_pool: boolean;
   latitude?: number;
   longitude?: number;
   created_at: string;
+  claim_status: string;
+  claim_status_reason?: string | null;
+  anomaly_flag: boolean;
+  land_proof_url?: string | null;
+  admin_approved: boolean;
+}
+
+export interface AdminStats {
+  total_farms: number;
+  total_credits: number;
+  flagged_count: number;
+  retired_credits: number;
+  on_chain_credits: number;
+  total_tonnes_co2: number;
+  pooled_farms: number;
+  claim_status_counts: {
+    VERIFIED: number;
+    UNVERIFIED: number;
+    SUSPICIOUS: number;
+    REJECTED: number;
+  };
+}
+
+export interface AdminCreditRecord extends CreditTokenRecord {
+  farmer_name: string;
+  district: string;
+  crop_type: string;
+  farm_claim_status: string;
 }
 
 export interface PoolMember {

@@ -22,21 +22,17 @@ module.exports = {
     localhost: {
       url: "http://127.0.0.1:8545",
     },
-    ...(DEPLOYER_KEY
-      ? {
-          amoy: {
-            url: AMOY_RPC,
-            accounts: [DEPLOYER_KEY],
-            chainId: 80002,
-            gasPrice: 20000000000,
-          },
-          polygon: {
-            url: process.env.POLYGON_MAINNET_RPC || "https://polygon-rpc.com",
-            accounts: [DEPLOYER_KEY],
-            chainId: 137,
-          },
-        }
-      : {}),
+    amoy: {
+      url: AMOY_RPC,
+      ...(DEPLOYER_KEY ? { accounts: [DEPLOYER_KEY] } : {}),
+      chainId: 80002,
+      gasPrice: 30000000000,
+    },
+    polygon: {
+      url: process.env.POLYGON_MAINNET_RPC || "https://polygon-rpc.com",
+      ...(DEPLOYER_KEY ? { accounts: [DEPLOYER_KEY] } : {}),
+      chainId: 137,
+    },
   },
   etherscan: {
     apiKey: {

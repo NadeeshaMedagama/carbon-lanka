@@ -24,19 +24,34 @@ class Settings(BaseSettings):
     solar_default_kw_per_ha: float = 500.0   # fallback when solar_kw_installed not provided
 
     # ── Blockchain / explorer ────────────────────────────────────────────────
-    polygon_block_explorer_url: str = "https://mumbai.polygonscan.com/tx"
-    polygon_mumbai_rpc: str = "https://rpc-mumbai.maticvigil.com"
+    polygon_amoy_rpc: str = "https://rpc-amoy.polygon.technology"
     carbon_credit_contract_address: str = ""
     deployer_private_key: str = ""
-    use_real_blockchain: bool = False
+    # Set USE_REAL_BLOCKCHAIN=false in .env to force simulation even when keys are present
+    use_real_blockchain_override: bool | None = None
+
+    @property
+    def use_real_blockchain(self) -> bool:
+        """Auto-enable when both private key and contract address are properly set.
+        Override with USE_REAL_BLOCKCHAIN=true/false in .env."""
+        if self.use_real_blockchain_override is not None:
+            return self.use_real_blockchain_override
+        key = self.deployer_private_key.strip()
+        addr = self.carbon_credit_contract_address.strip()
+        key_valid = len(key) >= 64 and not key.startswith("0xYOUR")
+        addr_valid = len(addr) == 42 and addr.startswith("0x")
+        return key_valid and addr_valid
 
     @property
     def block_explorer_base_url(self) -> str:
-        return "https://amoy.polygonscan.com"
+        return "https://amoy.polygonscan.com/tx"
 
     # ── Google Earth Engine ───────────────────────────────────────────────────
     gee_service_account_key: str = ""
     gee_project_id: str = ""
+
+    # ── Admin ─────────────────────────────────────────────────────────────────
+    admin_secret_key: str = "carbonlanka-admin"
 
 
 settings = Settings()

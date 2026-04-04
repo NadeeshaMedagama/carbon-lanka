@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CheckCircle2, Leaf } from "lucide-react";
 import { CreditCard } from "../components/CreditCard/CreditCard";
 import { PoolMap } from "../components/PoolMap/PoolMap";
 import { api } from "../services/api";
@@ -31,7 +32,7 @@ function BlockchainStatusBadge({ health }: { health: BlockchainHealth | null }) 
           isLive ? "bg-green-400 shadow-sm shadow-green-400/50" : "bg-yellow-400 shadow-sm shadow-yellow-400/50"
         }`}
       />
-      {isLive ? "Blockchain: Live on Polygon" : "Blockchain: Demo Mode"}
+      {isLive ? "Blockchain: Live on Polygon" : "Blockchain: Configuring"}
       {health.contract_address && (
         <span className="ml-1 font-mono text-gray-400" title={health.contract_address}>
           ({health.contract_address.slice(0, 6)}...{health.contract_address.slice(-4)})
@@ -65,11 +66,15 @@ export default function Marketplace() {
   }, []);
 
   const handleBuy = async (credit: CreditListing) => {
-    const buyer = account ?? "0xDEMO_BUYER_0000000000000000000000000000";
+    if (!account) {
+      setBuyError("Please connect your wallet to purchase credits.");
+      return;
+    }
+    const buyer = account;
     setBuying(credit.token_id);
     setBuyError(null);
     try {
-      const result = await api.buyCredit(credit.token_id, buyer, credit.price_per_tonne_usd);
+      const result = await api.buyCredit(credit.token_id, buyer, credit.price_per_tonne_usd * credit.tonnes_co2);
       setPayout(result);
       setListings((prev) => prev.filter((l) => l.token_id !== credit.token_id));
     } catch {
@@ -119,7 +124,11 @@ export default function Marketplace() {
         <div className="flex items-center gap-3 flex-wrap">
           <BlockchainStatusBadge health={blockchainHealth} />
           <div className="text-xs text-gray-400 rounded-lg border border-white/10 bg-forest-light px-3 py-2">
-            Buyer wallet: <span className="text-white font-mono">{account ?? "Demo buyer"}</span>
+            Buyer wallet:{" "}
+            {account
+              ? <span className="text-white font-mono">{account}</span>
+              : <span className="text-gray-500 italic">Connect wallet to buy</span>
+            }
           </div>
         </div>
       </div>
@@ -159,7 +168,7 @@ export default function Marketplace() {
       {payout && (
         <div className="rounded-xl border border-carbon-600/60 bg-carbon-900/30 p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">💸</span>
+            <CheckCircle2 className="w-6 h-6 text-carbon-400 shrink-0" />
             <div>
               <div className="text-white font-bold">Purchase Complete — Payout Sent!</div>
               <div className="text-gray-400 text-sm">Token #{payout.token_id} retired on-chain. Credit cannot be re-used.</div>
@@ -217,7 +226,7 @@ export default function Marketplace() {
         <>
           {listings.length === 0 && !loadError && (
             <div className="text-center py-12 text-gray-500">
-              <div className="text-4xl mb-3">🌿</div>
+              <Leaf className="w-10 h-10 text-slate-600 mb-3 mx-auto" />
               <div className="text-sm">No credits listed yet. Complete farm issuance flow first to publish credits.</div>
             </div>
           )}

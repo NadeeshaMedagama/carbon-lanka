@@ -38,14 +38,24 @@ export async function connectWallet(): Promise<string> {
 export async function switchToAmoy(): Promise<void> {
   if (!window.ethereum) throw new Error("MetaMask not found.");
   const chainIdHex = "0x" + CHAIN_ID.toString(16);
+
+  // Check current chain first — skip the switch request if already on Amoy
+  try {
+    const currentChain = await window.ethereum.request({ method: "eth_chainId" }) as string;
+    if (currentChain.toLowerCase() === chainIdHex.toLowerCase()) return;
+  } catch {
+    // ignore — proceed with switch attempt
+  }
+
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: chainIdHex }],
     });
   } catch (err: unknown) {
-    // Chain not added -- add it
-    if ((err as { code: number }).code === 4902) {
+    const code = (err as { code: number }).code;
+    if (code === 4902) {
+      // Chain not added yet — add it
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
         params: [
@@ -58,7 +68,11 @@ export async function switchToAmoy(): Promise<void> {
           },
         ],
       });
+    } else if (code === -32002) {
+      // Already a pending request — re-throw so the hook can show the right message
+      throw err;
     }
+    // code 4001 = user rejected switch, proceed anyway (wallet may already be connected)
   }
 }
 

@@ -1,13 +1,11 @@
 import hashlib
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from datetime import datetime, timezone
-import hashlib
 
 from app.config import settings
 from app.core.blockchain import get_blockchain_service
@@ -49,6 +47,18 @@ async def mint_credit(
     if not farm.estimated_tonnes_co2:
         raise HTTPException(status_code=422, detail="Farm has no MRV estimate")
 
+    if farm.claim_status in ("REJECTED", "SUSPICIOUS"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cannot mint credits for {farm.claim_status} farm. Manual review required.",
+        )
+
+    if not farm.admin_approved:
+        raise HTTPException(
+            status_code=403,
+            detail="Farm must be approved by admin before credits can be minted. Please upload land proof documents and wait for admin verification.",
+        )
+
     tonnes_int = int(round(farm.estimated_tonnes_co2))
     if tonnes_int < 1:
         raise HTTPException(status_code=422, detail="Estimated CO2 is below 1 tonne")
@@ -62,6 +72,16 @@ async def mint_credit(
     blockchain = get_blockchain_service()
 
     if blockchain is not None and settings.use_real_blockchain:
+        # Zero address is rejected by the contract ("Invalid farmer address").
+        # Fall back to the verifier's own wallet so the mint succeeds even when
+        # the farmer hasn't connected a personal wallet yet.
+        if farmer_address == "0x0000000000000000000000000000000000000000":
+            farmer_address = blockchain.account.address
+            logger.info(
+                "No farmer address supplied — using verifier address %s for farm %d",
+                farmer_address, farm_id,
+            )
+
         if not _ETH_ADDRESS_RE.match(farmer_address):
             raise HTTPException(
                 status_code=422,
@@ -115,7 +135,7 @@ async def mint_credit(
         "farm_id": farm_id,
         "tonnes_co2": farm.estimated_tonnes_co2,
         "tx_hash": tx_hash,
-        "block_explorer_url": f"{settings.polygon_block_explorer_url}/{tx_hash}",
+        "block_explorer_url": f"{settings.block_explorer_base_url}/{tx_hash}",
         "network": "Polygon Mumbai Testnet",
         "standard": "ERC-1155",
         "methodology": methodology,
@@ -138,40 +158,63 @@ async def list_credits(
 
 
 @router.get("/{token_id}/on-chain")
-async def get_credit_on_chain(token_id: int) -> dict:
+async def get_credit_on_chain(
+    token_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
     """
-    Read credit metadata directly from the deployed smart contract.
+    Read credit metadata from the deployed smart contract when blockchain is enabled,
+    or from the database record when running in simulation mode.
+    """
+    # Always look up the DB record first — needed in both paths
+    result = await session.exec(
+        select(CreditToken).where(CreditToken.token_id == token_id)
+    )
+    token = result.first()
+    if not token:
+        raise HTTPException(status_code=404, detail=f"Token #{token_id} not found")
 
-    Returns the on-chain state independent of the backend database,
-    allowing independent verification that the UI matches reality.
-    """
     blockchain = get_blockchain_service()
-    if blockchain is None or not settings.use_real_blockchain:
-        raise HTTPException(
-            status_code=503,
-            detail="Blockchain integration is not enabled (USE_REAL_BLOCKCHAIN=false)",
-        )
 
-    try:
-        credit = await blockchain.get_credit(token_id)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Could not read token #{token_id} from chain: {exc}",
-        )
+    # ── Real blockchain: only if this specific token was actually minted on-chain
+    if token.on_chain and blockchain is not None and settings.use_real_blockchain:
+        try:
+            credit = await blockchain.get_credit(token_id)
+            return {
+                "token_id": token_id,
+                "farmer": credit["farmer"],
+                "tonnes": credit["tonnes"],
+                "farm_id": credit["farm_id"],
+                "vintage": credit["vintage"],
+                "methodology": credit["methodology"],
+                "sat_hash": credit["sat_hash"],
+                "retired": credit["retired"],
+                "retired_by": credit["retired_by"],
+                "retired_at": credit["retired_at"],
+                "source": "on-chain (Polygon Amoy)",
+            }
+        except Exception as exc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not read token #{token_id} from chain: {exc}",
+            )
 
+    # ── Simulated token: serve from database ─────────────────────────────
+    farm = await session.get(Farm, token.farm_id)
     return {
-        "token_id": token_id,
-        "farmer": credit["farmer"],
-        "tonnes": credit["tonnes"],
-        "farm_id": credit["farm_id"],
-        "vintage": credit["vintage"],
-        "methodology": credit["methodology"],
-        "sat_hash": credit["sat_hash"],
-        "retired": credit["retired"],
-        "retired_by": credit["retired_by"],
-        "retired_at": credit["retired_at"],
-        "source": "on-chain (Polygon Amoy)",
+        "token_id": token.token_id,
+        "farmer": token.farmer_address or "0x0000000000000000000000000000000000000000",
+        "tonnes": int(token.tonnes_co2),
+        "farm_id": f"FARM-{token.farm_id}",
+        "vintage": token.vintage,
+        "methodology": token.methodology,
+        "sat_hash": token.sat_hash,
+        "retired": token.retired,
+        "retired_by": token.retired_by,
+        "retired_at": int(token.retired_at.timestamp()) if token.retired_at else 0,
+        "district": farm.district if farm else None,
+        "crop_type": farm.crop_type if farm else None,
+        "source": "simulated (not minted on-chain)",
     }
 
 
@@ -179,10 +222,13 @@ async def get_credit_on_chain(token_id: int) -> dict:
 async def blockchain_health() -> dict:
     """Check blockchain connectivity and verifier wallet status."""
     blockchain = get_blockchain_service()
+    contract_addr = settings.carbon_credit_contract_address or None
     if blockchain is None:
         return {
             "enabled": False,
-            "reason": "USE_REAL_BLOCKCHAIN is false or service not initialised",
+            "connected": False,
+            "contract_address": contract_addr,
+            "reason": "Blockchain not initialised — set DEPLOYER_PRIVATE_KEY + CARBON_CREDIT_CONTRACT_ADDRESS",
         }
     info = await blockchain.check_connection()
-    return {"enabled": True, **info}
+    return {"enabled": True, "connected": info.get("connected", False), **info}

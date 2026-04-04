@@ -28,6 +28,7 @@ export function useWeb3() {
   }, []);
 
   const connect = useCallback(async () => {
+    if (connecting) return; // already in progress — don't stack requests
     setConnecting(true);
     setError(null);
     try {
@@ -35,11 +36,19 @@ export function useWeb3() {
       const addr = await connectWallet();
       setAccount(addr);
     } catch (err: unknown) {
-      setError((err as Error).message ?? "Connection failed");
+      const code = (err as { code?: number }).code;
+      if (code === -32002) {
+        // MetaMask popup is already open — just tell the user
+        setError("MetaMask is already asking for permission. Please open MetaMask and approve the request.");
+      } else if (code === 4001) {
+        setError("Connection rejected. Please approve in MetaMask.");
+      } else {
+        setError((err as Error).message ?? "Connection failed");
+      }
     } finally {
       setConnecting(false);
     }
-  }, []);
+  }, [connecting]);
 
   const disconnect = () => setAccount(null);
 
