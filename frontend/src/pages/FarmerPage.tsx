@@ -356,9 +356,15 @@ export default function FarmerPage() {
                     <span>Pool entry and blockchain minting — waiting for approval</span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 italic">
-                  You will be notified once the admin completes the review. Check back on the admin portal or contact support.
+                <p className="text-xs text-gray-400 mt-1">
+                  Once approved, your credits will be <span className="text-carbon-400 font-medium">automatically minted</span> and listed on the marketplace.
                 </p>
+                <Link
+                  to="/my-farm"
+                  className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-carbon-600 hover:bg-carbon-500 text-white text-sm font-medium transition-colors"
+                >
+                  Check My Farm Dashboard &rarr;
+                </Link>
               </div>
             </div>
           )}

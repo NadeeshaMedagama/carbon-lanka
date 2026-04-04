@@ -82,7 +82,6 @@ export const api = {
       .post<{ success: boolean; farm_id: number; land_proof_url: string }>(
         `/farms/${farmId}/upload-proof`,
         form,
-        { headers: { "Content-Type": "multipart/form-data" } },
       )
       .then((r) => r.data);
   },
@@ -154,7 +153,19 @@ export const api = {
 
   adminApproveFarm: (key: string, farmId: number, note?: string) =>
     client
-      .post<{ success: boolean; claim_status: string }>(
+      .post<{
+        success: boolean;
+        claim_status: string;
+        admin_approved: boolean;
+        mint?: {
+          token_id: number;
+          tx_hash: string;
+          on_chain: boolean;
+          block_explorer_url: string;
+          tonnes_co2: number;
+        };
+        mint_error?: string;
+      }>(
         `/admin/farms/${farmId}/approve`,
         { note: note ?? "Manually approved by admin" },
         { headers: { "x-admin-key": key } },

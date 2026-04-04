@@ -4,7 +4,9 @@ Admin routes — manual verification, anomaly review, and platform management.
 Authentication: pass the admin secret key in the X-Admin-Key header.
 Default key (configurable via ADMIN_SECRET_KEY env var): "carbonlanka-admin"
 """
+import hashlib
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Body
@@ -12,6 +14,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.config import settings
+from app.core.blockchain import get_blockchain_service
 from app.db.database import get_session
 from app.models.farm import Farm
 from app.models.credit import CreditToken
@@ -88,6 +91,78 @@ async def list_all_farms(
     return [f.model_dump() for f in farms]
 
 
+# ── Auto-mint helper ─────────────────────────────────────────────────────────
+
+async def _auto_mint_credit(farm: Farm, session: AsyncSession) -> dict | None:
+    """Mint a CreditToken for an approved farm (pool + blockchain).
+
+    Returns a dict with token info on success, or None if the farm is not
+    eligible (e.g. no CO2 estimate or < 1 tonne).
+    """
+    if not farm.estimated_tonnes_co2 or farm.estimated_tonnes_co2 < 1:
+        log.info("Skip auto-mint for farm %d: estimated_tonnes_co2=%s", farm.id, farm.estimated_tonnes_co2)
+        return None
+
+    tonnes_int = int(round(farm.estimated_tonnes_co2))
+    vintage = str(datetime.now(timezone.utc).year)
+    methodology = "Verra VMD0042"
+
+    sat_seed = f"{farm.id}:{farm.crop_type}:{farm.estimated_tonnes_co2}:sat"
+    sat_hash_hex = "0x" + hashlib.sha256(sat_seed.encode()).hexdigest()
+
+    blockchain = get_blockchain_service()
+    farmer_address = "0x0000000000000000000000000000000000000000"
+
+    if blockchain is not None and settings.use_real_blockchain:
+        # Use verifier address when no farmer wallet is known
+        farmer_address = blockchain.account.address
+
+        sat_hash_bytes = bytes.fromhex(sat_hash_hex[2:])
+        result = await blockchain.mint(
+            farmer_address=farmer_address,
+            tonnes=tonnes_int,
+            farm_id=f"FARM-{farm.id}",
+            vintage=vintage,
+            sat_hash_bytes=sat_hash_bytes,
+        )
+        token_id = result["token_id"]
+        tx_hash = result["tx_hash"]
+        on_chain = True
+    else:
+        token_seed = f"{farm.id}:{farm.crop_type}:{farm.estimated_tonnes_co2}:2026"
+        token_id = int(hashlib.sha256(token_seed.encode()).hexdigest()[:8], 16) % 100000
+        tx_hash = "0x" + hashlib.sha256((token_seed + "tx").encode()).hexdigest()
+        on_chain = False
+
+    token = CreditToken(
+        token_id=token_id,
+        farm_id=farm.id,
+        farmer_address=farmer_address,
+        tonnes_co2=farm.estimated_tonnes_co2,
+        vintage=vintage,
+        methodology=methodology,
+        sat_hash=sat_hash_hex,
+        tx_hash=tx_hash,
+        on_chain=on_chain,
+    )
+    session.add(token)
+    await session.commit()
+    await session.refresh(token)
+
+    explorer_url = f"{settings.block_explorer_base_url}/{tx_hash}"
+    log.info(
+        "Auto-minted token %d for farm %d (%.2f t CO2, on_chain=%s)",
+        token_id, farm.id, farm.estimated_tonnes_co2, on_chain,
+    )
+    return {
+        "token_id": token_id,
+        "tx_hash": tx_hash,
+        "on_chain": on_chain,
+        "block_explorer_url": explorer_url,
+        "tonnes_co2": farm.estimated_tonnes_co2,
+    }
+
+
 # ── Approve farm ─────────────────────────────────────────────────────────────
 
 @router.post("/farms/{farm_id}/approve")
@@ -111,12 +186,29 @@ async def approve_farm(
     farm.claim_status = "VERIFIED"
     farm.anomaly_flag = False
     farm.admin_approved = True
+    farm.in_pool = True
     farm.claim_status_reason = note
     session.add(farm)
     await session.commit()
+    await session.refresh(farm)
 
-    log.info("Admin approved farm %d (%s → VERIFIED): %s", farm_id, old_status, note)
-    return {"success": True, "farm_id": farm_id, "claim_status": "VERIFIED", "admin_approved": True}
+    log.info("Admin approved farm %d (%s → VERIFIED, in_pool=True): %s", farm_id, old_status, note)
+
+    # Auto-mint credit token so the farmer doesn't need to take further action
+    mint_info = None
+    mint_error = None
+    try:
+        mint_info = await _auto_mint_credit(farm, session)
+    except Exception as exc:
+        mint_error = str(exc)
+        log.warning("Auto-mint failed for farm %d after approval: %s", farm_id, exc)
+
+    resp: dict = {"success": True, "farm_id": farm_id, "claim_status": "VERIFIED", "admin_approved": True}
+    if mint_info:
+        resp["mint"] = mint_info
+    if mint_error:
+        resp["mint_error"] = mint_error
+    return resp
 
 
 # ── Reject farm ──────────────────────────────────────────────────────────────

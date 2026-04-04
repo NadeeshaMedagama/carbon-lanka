@@ -10,7 +10,7 @@ from app.db.database import get_session
 from app.models.farm import Farm, FarmInput, FarmResponse
 from app.core.mrv_engine import calculate_carbon
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter(prefix="/farms", tags=["Farms"])
